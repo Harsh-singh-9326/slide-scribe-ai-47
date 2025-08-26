@@ -1,1 +1,10 @@
 project_id = "tyulhdzrlmkyzmjxegio"
+
+[functions.generate-presentation]
+verify_jwt = true
+
+[functions.process-file] 
+verify_jwt = true
+
+[functions.export-presentation]
+verify_jwt = true

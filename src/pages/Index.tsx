@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Upload, Wand2, Download, Zap, FileText, Palette, Users, Shield, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Footer } from "@/components/Footer";
 import Header from "@/components/Header";
 
 const Index = () => {
@@ -217,36 +218,8 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t py-12 bg-muted/20">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">SlideForge AI</span>
-            </div>
-            
-            <div className="flex items-center space-x-6 text-sm text-muted-foreground">
-              <Link to="/privacy" className="hover:text-foreground transition-colors">
-                Privacy Policy
-              </Link>
-              <Link to="/terms" className="hover:text-foreground transition-colors">
-                Terms of Service
-              </Link>
-              <Link to="/support" className="hover:text-foreground transition-colors">
-                Support
-              </Link>
-            </div>
-          </div>
-          
-          <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 SlideForge AI. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      
+      <Footer />
     </div>
   );
 };

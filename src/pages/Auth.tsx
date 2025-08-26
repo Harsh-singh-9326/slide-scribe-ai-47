@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Link } from "react-router-dom";
 import { Mail, Lock, User, ArrowLeft } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,30 +18,85 @@ const Auth = () => {
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate('/dashboard');
+      }
+    };
+    checkUser();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate authentication
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    toast({
-      title: isLogin ? "Welcome back!" : "Account created!",
-      description: isLogin 
-        ? "You've been successfully signed in" 
-        : "Your account has been created and you're now signed in",
-    });
-
-    setIsLoading(false);
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Welcome back!",
+          description: "You have been signed in successfully.",
+        });
+        
+        navigate('/dashboard');
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              full_name: name,
+            }
+          }
+        });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleGoogleAuth = () => {
-    toast({
-      title: "Google Sign In",
-      description: "This feature requires Supabase integration",
-      variant: "destructive",
-    });
+  const handleGoogleAuth = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        }
+      });
+      
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

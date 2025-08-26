@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Upload, FileText, Wand2, Loader2 } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Create = () => {
   const [inputType, setInputType] = useState<"text" | "file">("text");
@@ -16,7 +18,22 @@ const Create = () => {
   const [template, setTemplate] = useState("");
   const [slideCount, setSlideCount] = useState("auto");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check authentication
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate('/auth');
+        return;
+      }
+      setUser(session.user);
+    };
+    checkAuth();
+  }, [navigate]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -39,35 +56,83 @@ const Create = () => {
   };
 
   const handleGenerate = async () => {
-    if (inputType === "text" && !textContent.trim()) {
+    if (!textContent.trim() && !selectedFile) {
       toast({
-        title: "No content provided",
-        description: "Please enter some text to generate slides from",
+        title: "Input Required",
+        description: "Please provide either text content or upload a file.",
         variant: "destructive",
       });
       return;
     }
 
-    if (inputType === "file" && !selectedFile) {
+    if (!user) {
       toast({
-        title: "No file selected",
-        description: "Please upload a file to generate slides from",
+        title: "Authentication Required",
+        description: "Please sign in to generate presentations.",
         variant: "destructive",
       });
+      navigate('/auth');
       return;
     }
 
     setIsGenerating(true);
     
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    toast({
-      title: "Presentation generated!",
-      description: "Your AI-powered presentation is ready for editing",
-    });
-    
-    setIsGenerating(false);
+    try {
+      let prompt = textContent;
+      
+      // If file is selected, process it first
+      if (selectedFile && inputType === "file") {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Not authenticated');
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const fileResponse = await supabase.functions.invoke('process-file', {
+          body: formData,
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          }
+        });
+
+        if (fileResponse.error) throw fileResponse.error;
+        
+        prompt = fileResponse.data.text;
+      }
+
+      // Generate presentation with AI
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('generate-presentation', {
+        body: {
+          prompt,
+          slideCount: slideCount === 'auto' ? 8 : parseInt(slideCount),
+          theme: template || 'modern'
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Presentation Generated!",
+        description: `Created "${response.data.presentation.title}" with ${response.data.presentation.slides.length} slides.`,
+      });
+      
+      // Navigate to editor with the new presentation
+      navigate(`/editor/${response.data.presentation.id}`);
+      
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate presentation. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -177,6 +242,13 @@ const Create = () => {
                       <SelectItem value="creative">Creative Bold</SelectItem>
                       <SelectItem value="professional">Professional Corporate</SelectItem>
                       <SelectItem value="academic">Academic Research</SelectItem>
+                      <SelectItem value="startup">Startup Pitch</SelectItem>
+                      <SelectItem value="elegant">Elegant Premium</SelectItem>
+                      <SelectItem value="tech">Tech Innovation</SelectItem>
+                      <SelectItem value="healthcare">Healthcare & Medical</SelectItem>
+                      <SelectItem value="finance">Finance & Banking</SelectItem>
+                      <SelectItem value="education">Educational</SelectItem>
+                      <SelectItem value="marketing">Marketing & Sales</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

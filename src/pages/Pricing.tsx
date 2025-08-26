@@ -8,7 +8,7 @@ const Pricing = () => {
   const plans = [
     {
       name: "Free",
-      price: "$0",
+      price: "₹0",
       period: "forever",
       description: "Perfect for trying SlideForge AI",
       icon: Zap,
@@ -28,7 +28,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: "$19",
+      price: "₹1,599",
       period: "per month",
       description: "For professionals and small teams",
       icon: Crown,
@@ -48,7 +48,7 @@ const Pricing = () => {
     },
     {
       name: "Enterprise",
-      price: "$99",
+      price: "₹3,999",
       period: "per month",
       description: "For large teams and organizations",
       icon: Star,
