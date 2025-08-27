@@ -22,27 +22,24 @@ serve(async (req) => {
       );
     }
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    if (!geminiApiKey) {
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'Gemini API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate presentation structure with GPT-5
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Generate presentation structure with Gemini
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional presentation designer. Create a structured presentation with exactly ${slideCount} slides based on the user's content. 
+        contents: [{
+          parts: [{
+            text: `You are a professional presentation designer. Create a structured presentation with exactly ${slideCount} slides based on the user's content: "${prompt}"
 
 Return a JSON object with this exact structure:
 {
@@ -57,19 +54,20 @@ Return a JSON object with this exact structure:
   ]
 }
 
-Make each slide engaging and well-structured. Use these layout types: "title-content", "two-column", "image-text", "bullets", "quote".`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_completion_tokens: 2000,
+Make each slide engaging and well-structured. Use these layout types: "title-content", "two-column", "image-text", "bullets", "quote". Return only the JSON object, no other text.`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 1,
+          topP: 1,
+          maxOutputTokens: 2048,
+        }
       }),
     });
 
     if (!response.ok) {
-      console.error('OpenAI API error:', await response.text());
+      console.error('Gemini API error:', await response.text());
       return new Response(
         JSON.stringify({ error: 'Failed to generate presentation' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -80,9 +78,16 @@ Make each slide engaging and well-structured. Use these layout types: "title-con
     let generatedContent;
     
     try {
-      generatedContent = JSON.parse(data.choices[0].message.content);
+      const geminiResponse = data.candidates[0].content.parts[0].text;
+      // Extract JSON from the response
+      const jsonMatch = geminiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        generatedContent = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
     } catch (error) {
-      console.error('Failed to parse OpenAI response:', error);
+      console.error('Failed to parse Gemini response:', error);
       return new Response(
         JSON.stringify({ error: 'Invalid AI response format' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

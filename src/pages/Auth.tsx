@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "react-router-dom";
-import { Mail, Lock, User, ArrowLeft } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -80,6 +81,26 @@ const Auth = () => {
     }
   };
 
+  const handleGuestLogin = () => {
+    // Create guest session in localStorage
+    const guestUser = {
+      id: 'guest-' + Date.now(),
+      email: 'guest@slideforge.ai',
+      full_name: 'Guest User',
+      isGuest: true
+    };
+    
+    localStorage.setItem('guest_user', JSON.stringify(guestUser));
+    localStorage.setItem('guest_presentations', JSON.stringify([]));
+    
+    toast({
+      title: "Welcome Guest!",
+      description: "You're using SlideForge AI as a guest. Data will be stored locally.",
+    });
+    
+    navigate('/dashboard');
+  };
+
   const handleGoogleAuth = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -93,7 +114,7 @@ const Auth = () => {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to sign in with Google",
+        description: error.message || "Google authentication is not enabled",
         variant: "destructive",
       });
     }
@@ -136,11 +157,22 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Guest Login */}
+              <Button
+                variant="outline"
+                onClick={handleGuestLogin}
+                className="w-full mb-2"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Continue as Guest
+              </Button>
+
               {/* Google Auth */}
               <Button
                 variant="outline"
                 onClick={handleGoogleAuth}
                 className="w-full"
+                disabled
               >
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                   <path
@@ -160,7 +192,7 @@ const Auth = () => {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Continue with Google
+                Google (Disabled)
               </Button>
 
               <div className="relative">
@@ -214,12 +246,19 @@ const Auth = () => {
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 pr-10"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
 
