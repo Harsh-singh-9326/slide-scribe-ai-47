@@ -268,9 +268,18 @@ const Auth = () => {
                       <input type="checkbox" className="rounded" />
                       <span>Remember me</span>
                     </label>
-                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        toast({
+                          title: "Password Reset",
+                          description: "This feature will be available soon. Use guest mode for now.",
+                        });
+                      }}
+                      className="text-sm text-primary hover:underline"
+                    >
                       Forgot password?
-                    </Link>
+                    </button>
                   </div>
                 )}
 

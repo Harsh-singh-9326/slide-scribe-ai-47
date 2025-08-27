@@ -18,6 +18,18 @@ const Dashboard = () => {
   useEffect(() => {
     // Check authentication and load data
     const init = async () => {
+      // Check for guest user first
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        const guestData = JSON.parse(guestUser);
+        setUser(guestData);
+        const guestPresentations = JSON.parse(localStorage.getItem('guest_presentations') || '[]');
+        setPresentations(guestPresentations);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/auth');
@@ -54,6 +66,17 @@ const Dashboard = () => {
 
   const handleDownload = async (presentationId: string, format: 'pptx' | 'pdf') => {
     try {
+      // Check if user is guest
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        toast({
+          title: "Guest Mode",
+          description: "Download feature requires authentication. Please sign up for an account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
@@ -90,7 +113,7 @@ const Dashboard = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Manage your presentations and create new ones
+              Welcome back, {user?.full_name || user?.email || 'User'}! Manage your presentations and create new ones
             </p>
           </div>
           <Button asChild className="bg-gradient-to-r from-primary to-accent">

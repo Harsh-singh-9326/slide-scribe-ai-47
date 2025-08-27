@@ -1,11 +1,86 @@
 import { Button } from "@/components/ui/button";
-import { Link, useLocation } from "react-router-dom";
-import { Zap, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Zap, Menu, X, LogOut } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    // Check authentication status
+    const checkAuth = async () => {
+      // Check for guest user first
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        const guestData = JSON.parse(guestUser);
+        setUser(guestData);
+        setIsGuest(true);
+        return;
+      }
+
+      // Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        setIsGuest(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setUser(session.user);
+        setIsGuest(false);
+      } else {
+        // Check if guest user exists
+        const guestUser = localStorage.getItem('guest_user');
+        if (guestUser) {
+          const guestData = JSON.parse(guestUser);
+          setUser(guestData);
+          setIsGuest(true);
+        } else {
+          setUser(null);
+          setIsGuest(false);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    if (isGuest) {
+      // Clear guest data
+      localStorage.removeItem('guest_user');
+      localStorage.removeItem('guest_presentations');
+      setUser(null);
+      setIsGuest(false);
+      toast({
+        title: "Signed out",
+        description: "You have been signed out of guest mode.",
+      });
+      navigate('/');
+    } else {
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      setUser(null);
+      setIsGuest(false);
+      toast({
+        title: "Signed out",
+        description: "You have been signed out successfully.",
+      });
+      navigate('/');
+    }
+  };
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -57,12 +132,26 @@ const Header = () => {
 
         {/* Desktop Auth Buttons */}
         <div className="hidden md:flex items-center space-x-3">
-          <Button variant="ghost" asChild>
-            <Link to="/auth">Sign In</Link>
-          </Button>
-          <Button asChild>
-            <Link to="/create">Get Started</Link>
-          </Button>
+          {user ? (
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-muted-foreground">
+                {isGuest ? 'Guest User' : user.email}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/create">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -109,16 +198,30 @@ const Header = () => {
               Pricing
             </Link>
             <div className="pt-3 space-y-2">
-              <Button variant="ghost" className="w-full" asChild>
-                <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
-                  Sign In
-                </Link>
-              </Button>
-              <Button className="w-full" asChild>
-                <Link to="/create" onClick={() => setIsMobileMenuOpen(false)}>
-                  Get Started
-                </Link>
-              </Button>
+              {user ? (
+                <div className="space-y-2">
+                  <div className="text-sm text-muted-foreground text-center">
+                    {isGuest ? 'Guest User' : user.email}
+                  </div>
+                  <Button variant="ghost" className="w-full" onClick={handleSignOut}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button variant="ghost" className="w-full" asChild>
+                    <Link to="/auth" onClick={() => setIsMobileMenuOpen(false)}>
+                      Sign In
+                    </Link>
+                  </Button>
+                  <Button className="w-full" asChild>
+                    <Link to="/create" onClick={() => setIsMobileMenuOpen(false)}>
+                      Get Started
+                    </Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

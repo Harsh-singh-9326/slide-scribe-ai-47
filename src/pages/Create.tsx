@@ -25,6 +25,15 @@ const Create = () => {
   useEffect(() => {
     // Check authentication
     const checkAuth = async () => {
+      // Check for guest user first
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        const guestData = JSON.parse(guestUser);
+        setUser(guestData);
+        return;
+      }
+
+      // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         navigate('/auth');
@@ -80,8 +89,21 @@ const Create = () => {
     try {
       let prompt = textContent;
       
-      // If file is selected, process it first
+      // Check if user is guest
+      const guestUser = localStorage.getItem('guest_user');
+      
+      // If file is selected and user is not guest, process it first
       if (selectedFile && inputType === "file") {
+        if (guestUser) {
+          toast({
+            title: "Guest Mode Limitation",
+            description: "File upload is not available in guest mode. Please sign up for an account or paste text content.",
+            variant: "destructive",
+          });
+          setIsGenerating(false);
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Not authenticated');
 
@@ -100,7 +122,38 @@ const Create = () => {
         prompt = fileResponse.data.text;
       }
 
-      // Generate presentation with AI
+      if (guestUser) {
+        // For guest users, create a mock presentation and store in localStorage
+        const mockPresentation = {
+          id: 'guest-' + Date.now(),
+          title: prompt.substring(0, 50) + '...',
+          theme: template || 'modern',
+          slide_count: slideCount === 'auto' ? 8 : parseInt(slideCount),
+          content: Array.from({ length: slideCount === 'auto' ? 8 : parseInt(slideCount) }, (_, i) => ({
+            title: `Slide ${i + 1}`,
+            content: `This is slide ${i + 1} content based on: ${prompt.substring(0, 100)}...`,
+            layout: 'title-content',
+            notes: 'Speaker notes for this slide'
+          })),
+          created_at: new Date().toISOString(),
+          user_id: guestUser
+        };
+
+        // Store in localStorage
+        const existingPresentations = JSON.parse(localStorage.getItem('guest_presentations') || '[]');
+        existingPresentations.unshift(mockPresentation);
+        localStorage.setItem('guest_presentations', JSON.stringify(existingPresentations));
+
+        toast({
+          title: "Demo Presentation Created!",
+          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides in demo mode.`,
+        });
+        
+        navigate(`/editor/${mockPresentation.id}`);
+        return;
+      }
+
+      // Generate presentation with AI (for authenticated users)
       const { data: { session } } = await supabase.auth.getSession();
       const response = await supabase.functions.invoke('generate-presentation', {
         body: {
