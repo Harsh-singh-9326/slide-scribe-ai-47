@@ -39,22 +39,31 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are a professional presentation designer. Create a structured presentation with exactly ${slideCount} slides based on the user's content: "${prompt}"
+            text: `You are a presentation assistant. I will give you a document or text content. Your task is to generate a slide-by-slide presentation in clear, concise English. Follow these rules:
 
-Return a JSON object with this exact structure:
+1. Each slide must have a title.
+2. Provide 3-5 bullet points per slide.
+3. Keep language simple and professional.
+4. If the input is technical, include examples or definitions.
+5. Match the style and tone of the input document.
+
+Here is the content:
+${prompt}
+
+Generate exactly ${slideCount} slides in JSON format with this structure:
 {
   "title": "Main presentation title",
   "slides": [
     {
       "title": "Slide title",
-      "content": "Main slide content in bullet points or paragraphs",
+      "content": "Main slide content with bullet points",
       "layout": "title-content",
       "notes": "Speaker notes for this slide"
     }
   ]
 }
 
-Make each slide engaging and well-structured. Use these layout types: "title-content", "two-column", "image-text", "bullets", "quote". Return only the JSON object, no other text.`
+Return only the JSON object, no other text.`
           }]
         }],
         generationConfig: {
