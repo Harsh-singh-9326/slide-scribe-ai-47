@@ -53,7 +53,18 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    if (presentationError || !presentation) {
+    if (presentationError) {
+      console.error('Presentation fetch error:', presentationError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Presentation not found or access denied',
+          details: presentationError.message 
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!presentation) {
       return new Response(
         JSON.stringify({ error: 'Presentation not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -108,8 +119,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in export-presentation:', error);
+    
+    // Better error details for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
+    
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: errorMessage,
+        timestamp: new Date().toISOString()
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

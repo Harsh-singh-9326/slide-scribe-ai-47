@@ -112,11 +112,21 @@ const Auth = () => {
       
       if (error) throw error;
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Google authentication failed",
-        variant: "destructive",
-      });
+      console.error('Google Auth Error:', error);
+      
+      if (error.message?.includes('provider is not enabled')) {
+        toast({
+          title: "Google Login Not Configured",
+          description: "Google authentication needs to be set up in Supabase Dashboard. Please contact support.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Authentication Error", 
+          description: error.message || "Google authentication failed. Please try again or use email login.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
