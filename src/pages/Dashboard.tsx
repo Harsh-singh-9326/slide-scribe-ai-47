@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, FileText, Download, Calendar } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Plus, FileText, Download, Calendar, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
@@ -99,6 +100,59 @@ const Dashboard = () => {
       toast({
         title: "Export Failed",
         description: error.message || "Failed to export presentation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (presentationId: string, presentationTitle: string) => {
+    try {
+      // Check if user is guest
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        // Handle guest user deletion from localStorage
+        const guestPresentations = JSON.parse(localStorage.getItem('guest_presentations') || '[]');
+        const updatedPresentations = guestPresentations.filter((p: any) => p.id !== presentationId);
+        localStorage.setItem('guest_presentations', JSON.stringify(updatedPresentations));
+        setPresentations(updatedPresentations);
+        toast({
+          title: "Deleted",
+          description: `"${presentationTitle}" has been deleted.`,
+        });
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Delete slides first (due to foreign key constraint)
+      const { error: slidesError } = await supabase
+        .from('slides')
+        .delete()
+        .eq('presentation_id', presentationId);
+
+      if (slidesError) throw slidesError;
+
+      // Then delete the presentation
+      const { error: presentationError } = await supabase
+        .from('presentations')
+        .delete()
+        .eq('id', presentationId);
+
+      if (presentationError) throw presentationError;
+
+      // Refresh the presentations list
+      await loadPresentations(session.user.id);
+      
+      toast({
+        title: "Deleted",
+        description: `"${presentationTitle}" has been deleted.`,
+      });
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete presentation",
         variant: "destructive",
       });
     }
@@ -225,6 +279,30 @@ const Dashboard = () => {
                           Edit
                         </Link>
                       </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Presentation</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{presentation.title}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDelete(presentation.id, presentation.title)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ))}

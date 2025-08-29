@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Download, 
   Plus, 
@@ -14,27 +16,34 @@ import {
   ArrowLeft,
   Eye
 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Editor = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [selectedSlide, setSelectedSlide] = useState(0);
+  const [currentTheme, setCurrentTheme] = useState('modern');
+  const [isSaving, setIsSaving] = useState(false);
+  const [presentation, setPresentation] = useState<any>(null);
   const [slides, setSlides] = useState([
     {
-      id: 1,
+      id: "1",
       title: "Introduction to Marketing Strategy",
       content: "Welcome to our comprehensive marketing strategy presentation for Q1 2024. This presentation will cover key objectives, target audiences, and strategic initiatives.",
       notes: "Start with enthusiasm and engage the audience with the quarterly goals."
     },
     {
-      id: 2,
+      id: "2",
       title: "Market Analysis Overview",
       content: "Current market trends show significant growth in digital channels. Our analysis reveals three key opportunities for expansion and competitive advantage.",
       notes: "Highlight the data-driven insights and reference the quarterly report."
     },
     {
-      id: 3,
+      id: "3",
       title: "Strategic Objectives",
       content: "Our primary objectives include: 1) Increase brand awareness by 25%, 2) Expand market share in key demographics, 3) Launch new product line successfully.",
       notes: "Emphasize measurable goals and timeline expectations."
@@ -43,7 +52,7 @@ const Editor = () => {
 
   const addSlide = () => {
     const newSlide = {
-      id: slides.length + 1,
+      id: Date.now().toString(), // Use timestamp string for unique ID
       title: "New Slide Title",
       content: "Enter your slide content here...",
       notes: "Add speaker notes for this slide."
@@ -71,6 +80,192 @@ const Editor = () => {
     setSlides(newSlides);
   };
 
+  // Load presentation data if editing existing
+  useEffect(() => {
+    if (id && id !== 'new') {
+      loadPresentation();
+    }
+  }, [id]);
+
+  const loadPresentation = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: presentationData, error } = await supabase
+        .from('presentations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      setPresentation(presentationData);
+      setCurrentTheme(presentationData.theme || 'modern');
+      
+      // Load slides
+      const { data: slidesData, error: slidesError } = await supabase
+        .from('slides')
+        .select('*')
+        .eq('presentation_id', id)
+        .order('slide_order');
+
+      if (slidesError) throw slidesError;
+
+      if (slidesData && slidesData.length > 0) {
+        const formattedSlides = slidesData.map(slide => ({
+          id: slide.id,
+          title: slide.title,
+          content: slide.content || '',
+          notes: slide.notes || ''
+        }));
+        setSlides(formattedSlides);
+      }
+    } catch (error: any) {
+      console.error('Error loading presentation:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load presentation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to save your presentation",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (id && id !== 'new') {
+        // Update existing presentation
+        const { error: updateError } = await supabase
+          .from('presentations')
+          .update({
+            theme: currentTheme,
+            slide_count: slides.length,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id);
+
+        if (updateError) throw updateError;
+
+        // Update slides
+        for (let i = 0; i < slides.length; i++) {
+          const slide = slides[i];
+          const { error: slideError } = await supabase
+            .from('slides')
+            .upsert({
+              id: typeof slide.id === 'string' ? slide.id : undefined,
+              presentation_id: id,
+              title: slide.title,
+              content: slide.content,
+              notes: slide.notes,
+              slide_order: i,
+              layout: 'title-content'
+            });
+
+          if (slideError) throw slideError;
+        }
+      }
+
+      toast({
+        title: "Saved",
+        description: "Your presentation has been saved successfully",
+      });
+    } catch (error: any) {
+      console.error('Save error:', error);
+      toast({
+        title: "Save Failed",
+        description: error.message || "Failed to save presentation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExport = async (format: 'pptx' | 'pdf') => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to export your presentation",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!id || id === 'new') {
+        toast({
+          title: "Save Required",
+          description: "Please save your presentation before exporting",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await supabase.functions.invoke('export-presentation', {
+        body: { presentationId: id, format },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Export Started",
+        description: `Your ${format.toUpperCase()} export is being prepared`,
+      });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export presentation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePreview = () => {
+    // For now, just show a simple preview in a new window
+    const previewContent = slides.map((slide, index) => `
+      <div style="page-break-after: always; padding: 40px; min-height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+        <h1 style="font-size: 2.5em; margin-bottom: 20px; color: #333;">${slide.title}</h1>
+        <div style="font-size: 1.2em; line-height: 1.6; color: #666;">${slide.content}</div>
+        <div style="position: absolute; bottom: 20px; right: 20px; color: #999; font-size: 0.9em;">
+          Slide ${index + 1} of ${slides.length}
+        </div>
+      </div>
+    `).join('');
+
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+      previewWindow.document.write(`
+        <html>
+          <head>
+            <title>Preview - ${presentation?.title || 'Presentation'}</title>
+            <style>
+              body { margin: 0; font-family: Arial, sans-serif; }
+              @media print { body { margin: 0; } }
+            </style>
+          </head>
+          <body>${previewContent}</body>
+        </html>
+      `);
+      previewWindow.document.close();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -93,22 +288,78 @@ const Editor = () => {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handlePreview}>
                 <Eye className="w-4 h-4 mr-2" />
                 Preview
               </Button>
-              <Button variant="outline" size="sm">
-                <Palette className="w-4 h-4 mr-2" />
-                Theme
-              </Button>
-              <Button variant="outline" size="sm">
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Palette className="w-4 h-4 mr-2" />
+                    Theme
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Choose Theme</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Select value={currentTheme} onValueChange={setCurrentTheme}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="modern">Modern</SelectItem>
+                        <SelectItem value="professional">Professional</SelectItem>
+                        <SelectItem value="creative">Creative</SelectItem>
+                        <SelectItem value="minimal">Minimal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSave}
+                disabled={isSaving}
+              >
                 <Save className="w-4 h-4 mr-2" />
-                Save
+                {isSaving ? 'Saving...' : 'Save'}
               </Button>
-              <Button size="sm" className="bg-gradient-to-r from-primary to-accent">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-gradient-to-r from-primary to-accent">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Export Presentation</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={() => handleExport('pptx')}
+                      className="w-full"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export as PPTX
+                    </Button>
+                    <Button 
+                      onClick={() => handleExport('pdf')}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Export as PDF
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
