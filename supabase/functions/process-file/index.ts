@@ -1,6 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
+// Add PDF text extraction using pdf-parse
+async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
+    const data = await pdfParse.default(new Uint8Array(pdfBuffer));
+    return data.text;
+  } catch (error) {
+    console.error('PDF parsing error:', error);
+    throw new Error('Failed to parse PDF content');
+  }
+}
+
+// Add DOCX text extraction using mammoth
+async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
+  try {
+    const mammoth = await import('https://esm.sh/mammoth@1.6.0');
+    const result = await mammoth.extractRawText({ arrayBuffer: docxBuffer });
+    return result.value;
+  } catch (error) {
+    console.error('DOCX parsing error:', error);
+    throw new Error('Failed to parse DOCX content');
+  }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -50,16 +74,34 @@ serve(async (req) => {
     const fileType = file.type;
     const fileName = file.name;
 
-    // Process different file types
+    console.log(`Processing file: ${fileName} (${fileType})`);
+
+    // Process different file types and extract content
     if (fileType === 'text/plain') {
       extractedText = await file.text();
+      console.log('Extracted text from TXT file:', extractedText.substring(0, 200) + '...');
     } else if (fileType === 'application/pdf') {
-      // For PDF files, we'll use a simple text extraction
-      // In a real implementation, you'd use a PDF parsing library
-      extractedText = `[PDF Content from ${fileName}]\n\nPlease note: PDF text extraction requires additional processing. For now, please provide the key points from your PDF document that you'd like to include in your presentation.`;
+      try {
+        // Convert PDF to array buffer for processing
+        const pdfBuffer = await file.arrayBuffer();
+        const pdfText = await extractPDFText(pdfBuffer);
+        extractedText = pdfText || `Unable to extract text from PDF: ${fileName}. Please ensure the PDF contains readable text.`;
+        console.log('Extracted text from PDF:', extractedText.substring(0, 200) + '...');
+      } catch (error) {
+        console.error('PDF extraction error:', error);
+        extractedText = `Error reading PDF content from ${fileName}. Please try uploading a different PDF file or use text input instead.`;
+      }
     } else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      // For DOCX files
-      extractedText = `[DOCX Content from ${fileName}]\n\nPlease note: DOCX text extraction requires additional processing. For now, please provide the key points from your Word document that you'd like to include in your presentation.`;
+      try {
+        // Convert DOCX to array buffer for processing
+        const docxBuffer = await file.arrayBuffer();
+        const docxText = await extractDOCXText(docxBuffer);
+        extractedText = docxText || `Unable to extract text from DOCX: ${fileName}. Please ensure the document contains readable text.`;
+        console.log('Extracted text from DOCX:', extractedText.substring(0, 200) + '...');
+      } catch (error) {
+        console.error('DOCX extraction error:', error);
+        extractedText = `Error reading DOCX content from ${fileName}. Please try uploading a different DOCX file or use text input instead.`;
+      }
     } else {
       return new Response(
         JSON.stringify({ error: 'Unsupported file type. Please upload PDF, DOCX, or TXT files.' }),
@@ -67,31 +109,10 @@ serve(async (req) => {
       );
     }
 
-    // Upload file to storage
-    const fileExt = fileName.split('.').pop();
-    const filePath = `${user.id}/${crypto.randomUUID()}.${fileExt}`;
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(filePath, file);
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to upload file' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('documents')
-      .getPublicUrl(filePath);
-
+    // Return extracted text without storing the file
     return new Response(
       JSON.stringify({
         text: extractedText,
-        fileUrl: urlData.publicUrl,
         fileName: fileName,
         fileType: fileType
       }),
