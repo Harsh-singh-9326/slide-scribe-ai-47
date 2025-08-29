@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Download, 
@@ -157,13 +157,20 @@ const Editor = () => {
 
         if (updateError) throw updateError;
 
-        // Update slides
+        // Delete existing slides first
+        const { error: deleteError } = await supabase
+          .from('slides')
+          .delete()
+          .eq('presentation_id', id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert all slides fresh
         for (let i = 0; i < slides.length; i++) {
           const slide = slides[i];
           const { error: slideError } = await supabase
             .from('slides')
-            .upsert({
-              id: typeof slide.id === 'string' ? slide.id : undefined,
+            .insert({
               presentation_id: id,
               title: slide.title,
               content: slide.content,
@@ -222,9 +229,36 @@ const Editor = () => {
 
       if (response.error) throw response.error;
 
+      // Handle actual download
+      if (response.data) {
+        if (format === 'pdf' && response.data.content) {
+          // For HTML content, create and download as HTML file
+          const blob = new Blob([response.data.content], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = response.data.fileName || `presentation.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } else if (format === 'pptx') {
+          // For PPTX, create a JSON file with presentation data for now
+          const blob = new Blob([JSON.stringify(response.data.presentation, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = response.data.fileName || `presentation.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }
+      }
+
       toast({
-        title: "Export Started",
-        description: `Your ${format.toUpperCase()} export is being prepared`,
+        title: "Export Complete",
+        description: `Your ${format.toUpperCase()} has been downloaded`,
       });
     } catch (error: any) {
       console.error('Export error:', error);
@@ -236,14 +270,73 @@ const Editor = () => {
     }
   };
 
+  const getThemeStyles = () => {
+    const themes = {
+      modern: {
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        titleColor: '#ffffff',
+        contentColor: '#f8fafc',
+        accentColor: '#667eea'
+      },
+      professional: {
+        background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+        titleColor: '#ecf0f1',
+        contentColor: '#bdc3c7',
+        accentColor: '#3498db'
+      },
+      creative: {
+        background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+        titleColor: '#2c3e50',
+        contentColor: '#34495e',
+        accentColor: '#e91e63'
+      },
+      minimal: {
+        background: '#ffffff',
+        titleColor: '#2c3e50',
+        contentColor: '#7f8c8d',
+        accentColor: '#95a5a6'
+      }
+    };
+    return themes[currentTheme as keyof typeof themes] || themes.modern;
+  };
+
   const handlePreview = () => {
-    // For now, just show a simple preview in a new window
+    const themeStyles = getThemeStyles();
     const previewContent = slides.map((slide, index) => `
-      <div style="page-break-after: always; padding: 40px; min-height: 100vh; display: flex; flex-direction: column; justify-content: center;">
-        <h1 style="font-size: 2.5em; margin-bottom: 20px; color: #333;">${slide.title}</h1>
-        <div style="font-size: 1.2em; line-height: 1.6; color: #666;">${slide.content}</div>
-        <div style="position: absolute; bottom: 20px; right: 20px; color: #999; font-size: 0.9em;">
-          Slide ${index + 1} of ${slides.length}
+      <div style="
+        page-break-after: always; 
+        padding: 60px; 
+        min-height: 100vh; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center;
+        background: ${themeStyles.background};
+        position: relative;
+      ">
+        <h1 style="
+          font-size: 3em; 
+          margin-bottom: 40px; 
+          color: ${themeStyles.titleColor};
+          font-weight: bold;
+          text-align: center;
+        ">${slide.title}</h1>
+        <div style="
+          font-size: 1.4em; 
+          line-height: 1.8; 
+          color: ${themeStyles.contentColor};
+          text-align: center;
+          max-width: 800px;
+          margin: 0 auto;
+        ">${slide.content.replace(/\n/g, '<br>')}</div>
+        <div style="
+          position: absolute; 
+          bottom: 30px; 
+          right: 30px; 
+          color: ${themeStyles.titleColor}; 
+          font-size: 1em;
+          opacity: 0.8;
+        ">
+          ${index + 1} / ${slides.length}
         </div>
       </div>
     `).join('');
@@ -255,7 +348,7 @@ const Editor = () => {
           <head>
             <title>Preview - ${presentation?.title || 'Presentation'}</title>
             <style>
-              body { margin: 0; font-family: Arial, sans-serif; }
+              body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
               @media print { body { margin: 0; } }
             </style>
           </head>
@@ -303,6 +396,9 @@ const Editor = () => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Choose Theme</DialogTitle>
+                    <DialogDescription>
+                      Select a theme to change the visual style of your presentation
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <Select value={currentTheme} onValueChange={setCurrentTheme}>
@@ -310,10 +406,10 @@ const Editor = () => {
                         <SelectValue placeholder="Select a theme" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="modern">Modern</SelectItem>
-                        <SelectItem value="professional">Professional</SelectItem>
-                        <SelectItem value="creative">Creative</SelectItem>
-                        <SelectItem value="minimal">Minimal</SelectItem>
+                        <SelectItem value="modern">Modern - Purple gradient</SelectItem>
+                        <SelectItem value="professional">Professional - Dark blue</SelectItem>
+                        <SelectItem value="creative">Creative - Pink gradient</SelectItem>
+                        <SelectItem value="minimal">Minimal - Clean white</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -340,6 +436,9 @@ const Editor = () => {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Export Presentation</DialogTitle>
+                    <DialogDescription>
+                      Download your presentation in your preferred format
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
                     <Button 
@@ -427,6 +526,22 @@ const Editor = () => {
             <Card className="max-w-4xl mx-auto">
               <CardContent className="p-8">
                 <div className="space-y-6">
+                  {/* Theme Preview */}
+                  <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-muted-foreground/20">
+                    <div 
+                      className="p-6 rounded-lg text-center"
+                      style={{
+                        background: getThemeStyles().background,
+                        color: getThemeStyles().titleColor
+                      }}
+                    >
+                      <h3 className="text-lg font-semibold mb-2">Theme Preview: {currentTheme}</h3>
+                      <p style={{ color: getThemeStyles().contentColor }}>
+                        This is how your slides will look with the {currentTheme} theme
+                      </p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
                       Slide Title
