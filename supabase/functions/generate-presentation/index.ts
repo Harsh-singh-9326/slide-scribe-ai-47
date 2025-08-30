@@ -13,8 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, slideCount = 5, theme = 'modern' } = await req.json();
-    
+    // ✅ allow both "prompt" and "name"
+    let { prompt, name, slideCount = 5, theme = 'modern' } = await req.json();
+    if (!prompt && name) prompt = name;
+
     if (!prompt) {
       return new Response(
         JSON.stringify({ error: 'Prompt is required' }),
@@ -31,15 +33,15 @@ serve(async (req) => {
     }
 
     // Generate presentation structure with Gemini
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are a presentation assistant. I will give you a document or text content. Your task is to generate a slide-by-slide presentation in clear, concise English. Follow these rules:
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `You are a presentation assistant. I will give you a document or text content. Your task is to generate a slide-by-slide presentation in clear, concise English. Follow these rules:
 
 1. Each slide must have a title.
 2. Provide 3-5 bullet points per slide.
@@ -64,16 +66,17 @@ Generate exactly ${slideCount} slides in JSON format with this structure:
 }
 
 Return only the JSON object, no other text.`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 1,
-          topP: 1,
-          maxOutputTokens: 2048,
-        }
-      }),
-    });
+            }]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       console.error('Gemini API error:', await response.text());
@@ -85,10 +88,8 @@ Return only the JSON object, no other text.`
 
     const data = await response.json();
     let generatedContent;
-    
     try {
       const geminiResponse = data.candidates[0].content.parts[0].text;
-      // Extract JSON from the response
       const jsonMatch = geminiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         generatedContent = JSON.parse(jsonMatch[0]);
@@ -103,7 +104,7 @@ Return only the JSON object, no other text.`
       );
     }
 
-    // Get user from authorization header
+    // Auth check
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return new Response(
@@ -116,10 +117,9 @@ Return only the JSON object, no other text.`
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
-    
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
@@ -127,7 +127,7 @@ Return only the JSON object, no other text.`
       );
     }
 
-    // Save presentation to database
+    // Save presentation
     const { data: presentation, error: dbError } = await supabase
       .from('presentations')
       .insert({
@@ -148,7 +148,7 @@ Return only the JSON object, no other text.`
       );
     }
 
-    // Save individual slides
+    // Save slides
     const slides = generatedContent.slides.map((slide: any, index: number) => ({
       presentation_id: presentation.id,
       title: slide.title,
@@ -158,13 +158,9 @@ Return only the JSON object, no other text.`
       layout: slide.layout || 'title-content'
     }));
 
-    const { error: slidesError } = await supabase
-      .from('slides')
-      .insert(slides);
-
+    const { error: slidesError } = await supabase.from('slides').insert(slides);
     if (slidesError) {
       console.error('Slides error:', slidesError);
-      // Continue anyway, slides can be added later
     }
 
     return new Response(
