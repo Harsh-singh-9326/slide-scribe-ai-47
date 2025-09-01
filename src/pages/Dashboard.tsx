@@ -65,35 +65,55 @@ const Dashboard = () => {
     }
   };
 
-  const handleDownload = async (presentationId: string, format: 'pptx' | 'pdf') => {
+  const handleDownload = async (presentationId: string, format: 'pptx' | 'pdf', event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent opening the presentation
     try {
-      // Check if user is guest
-      const guestUser = localStorage.getItem('guest_user');
-      if (guestUser) {
+      // Get presentation data
+      const presentation = presentations.find(p => p.id === presentationId);
+      if (!presentation) {
         toast({
-          title: "Guest Mode",
-          description: "Download feature requires authentication. Please sign up for an account.",
+          title: "Error",
+          description: "Presentation not found",
           variant: "destructive",
         });
         return;
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      // Get slides data
+      let slidesData = [];
+      
+      // Check if user is guest
+      const guestUser = localStorage.getItem('guest_user');
+      if (guestUser) {
+        // For guest users, create simple slides from presentation
+        slidesData = [
+          {
+            title: presentation.title,
+            content: presentation.description || "Generated presentation content",
+            notes: "Speaker notes"
+          }
+        ];
+      } else {
+        // For authenticated users, get actual slides from database
+        const { data: slides, error } = await supabase
+          .from('slides')
+          .select('*')
+          .eq('presentation_id', presentationId)
+          .order('slide_order');
 
-      const response = await supabase.functions.invoke('export-presentation', {
-        body: { presentationId, format },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        }
-      });
+        if (error) throw error;
+        slidesData = slides || [];
+      }
 
-      if (response.error) throw response.error;
+      if (format === 'pptx') {
+        await generatePPTX(presentation, slidesData);
+      } else {
+        await generatePDF(presentation, slidesData);
+      }
 
-      // For now, show a success message
       toast({
-        title: "Export Started",
-        description: `Your ${format.toUpperCase()} export is being prepared. This feature is in development.`,
+        title: "Download Complete",
+        description: `Your ${format.toUpperCase()} has been downloaded`,
       });
     } catch (error: any) {
       console.error('Export error:', error);
@@ -103,6 +123,78 @@ const Dashboard = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const generatePPTX = async (presentation: any, slides: any[]) => {
+    const pptx = await import('pptxgenjs');
+    const pres = new pptx.default();
+
+    slides.forEach((slide, index) => {
+      const pptxSlide = pres.addSlide();
+      
+      // Add title
+      pptxSlide.addText(slide.title, {
+        x: 0.5,
+        y: 1,
+        w: 9,
+        h: 1,
+        fontSize: 24,
+        bold: true,
+        align: 'center',
+        color: '363636'
+      });
+
+      // Add content
+      pptxSlide.addText(slide.content || '', {
+        x: 0.5,
+        y: 2.5,
+        w: 9,
+        h: 4,
+        fontSize: 16,
+        align: 'left',
+        color: '666666',
+        valign: 'top'
+      });
+
+      // Add slide number
+      pptxSlide.addText(`${index + 1}`, {
+        x: 9,
+        y: 6.8,
+        w: 1,
+        h: 0.3,
+        fontSize: 12,
+        align: 'right',
+        color: '999999'
+      });
+    });
+
+    await pres.writeFile({ fileName: `${presentation.title}.pptx` });
+  };
+
+  const generatePDF = async (presentation: any, slides: any[]) => {
+    const jsPDF = (await import('jspdf')).default;
+    const pdf = new jsPDF();
+
+    slides.forEach((slide, index) => {
+      if (index > 0) pdf.addPage();
+
+      // Add title
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(slide.title, 105, 40, { align: 'center' });
+
+      // Add content
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
+      pdf.text(splitContent, 20, 80);
+
+      // Add slide number
+      pdf.setFontSize(10);
+      pdf.text(`${index + 1} / ${slides.length}`, 190, 280, { align: 'right' });
+    });
+
+    pdf.save(`${presentation.title}.pdf`);
   };
 
   const handleDelete = async (presentationId: string, presentationTitle: string) => {
@@ -239,7 +331,8 @@ const Dashboard = () => {
                 {presentations.map((presentation) => (
                   <div
                     key={presentation.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/editor/${presentation.id}`)}
                   >
                     <div className="flex items-center space-x-4">
                       <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
@@ -261,7 +354,7 @@ const Dashboard = () => {
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => handleDownload(presentation.id, 'pptx')}
+                        onClick={(e) => handleDownload(presentation.id, 'pptx', e)}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         PPTX
@@ -269,19 +362,29 @@ const Dashboard = () => {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => handleDownload(presentation.id, 'pdf')}
+                        onClick={(e) => handleDownload(presentation.id, 'pdf', e)}
                       >
                         <Download className="w-4 h-4 mr-2" />
                         PDF
                       </Button>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/editor/${presentation.id}`}>
-                          Edit
-                        </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/editor/${presentation.id}`);
+                        }}
+                      >
+                        Edit
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-destructive hover:text-destructive"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </AlertDialogTrigger>

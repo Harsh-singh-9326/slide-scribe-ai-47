@@ -220,40 +220,15 @@ const Editor = () => {
         return;
       }
 
-      const response = await supabase.functions.invoke('export-presentation', {
-        body: { presentationId: id, format },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        }
-      });
+      const presentationData = {
+        title: presentation?.title || "Presentation",
+        ...presentation
+      };
 
-      if (response.error) throw response.error;
-
-      // Handle actual download
-      if (response.data) {
-        if (format === 'pdf' && response.data.content) {
-          // For HTML content, create and download as HTML file
-          const blob = new Blob([response.data.content], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = response.data.fileName || `presentation.html`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } else if (format === 'pptx') {
-          // For PPTX, create a JSON file with presentation data for now
-          const blob = new Blob([JSON.stringify(response.data.presentation, null, 2)], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = response.data.fileName || `presentation.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        }
+      if (format === 'pptx') {
+        await generatePPTX(presentationData, slides);
+      } else {
+        await generatePDF(presentationData, slides);
       }
 
       toast({
@@ -268,6 +243,85 @@ const Editor = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const generatePPTX = async (presentation: any, slides: any[]) => {
+    const pptx = await import('pptxgenjs');
+    const pres = new pptx.default();
+
+    const themeStyles = getThemeStyles();
+    
+    slides.forEach((slide, index) => {
+      const pptxSlide = pres.addSlide();
+      
+      // Add background based on theme
+      if (currentTheme !== 'minimal') {
+        pptxSlide.background = { color: themeStyles.accentColor };
+      }
+      
+      // Add title
+      pptxSlide.addText(slide.title, {
+        x: 0.5,
+        y: 1,
+        w: 9,
+        h: 1,
+        fontSize: 24,
+        bold: true,
+        align: 'center',
+        color: currentTheme === 'minimal' ? '2c3e50' : 'ffffff'
+      });
+
+      // Add content
+      pptxSlide.addText(slide.content || '', {
+        x: 0.5,
+        y: 2.5,
+        w: 9,
+        h: 4,
+        fontSize: 16,
+        align: 'left',
+        color: currentTheme === 'minimal' ? '7f8c8d' : 'f8fafc',
+        valign: 'top'
+      });
+
+      // Add slide number
+      pptxSlide.addText(`${index + 1} / ${slides.length}`, {
+        x: 9,
+        y: 6.8,
+        w: 1,
+        h: 0.3,
+        fontSize: 12,
+        align: 'right',
+        color: currentTheme === 'minimal' ? '999999' : 'ffffff'
+      });
+    });
+
+    await pres.writeFile({ fileName: `${presentation.title}.pptx` });
+  };
+
+  const generatePDF = async (presentation: any, slides: any[]) => {
+    const jsPDF = (await import('jspdf')).default;
+    const pdf = new jsPDF();
+
+    slides.forEach((slide, index) => {
+      if (index > 0) pdf.addPage();
+
+      // Add title
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(slide.title, 105, 40, { align: 'center' });
+
+      // Add content
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
+      pdf.text(splitContent, 20, 80);
+
+      // Add slide number
+      pdf.setFontSize(10);
+      pdf.text(`${index + 1} / ${slides.length}`, 190, 280, { align: 'right' });
+    });
+
+    pdf.save(`${presentation.title}.pdf`);
   };
 
   const getThemeStyles = () => {
