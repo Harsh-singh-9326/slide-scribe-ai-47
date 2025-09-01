@@ -20,6 +20,14 @@ interface PaymentOptions {
     email: string;
     contact: string;
   };
+  methods?: {
+    upi?: boolean;
+    card?: boolean;
+    netbanking?: boolean;
+    wallet?: boolean;
+    emi?: boolean;
+    paylater?: boolean;
+  };
   onSuccess: (response: any) => void;
   onFailure: (error: any) => void;
 }
@@ -65,7 +73,7 @@ export const useRazorpay = () => {
           email: options.customer.email,
           contact: options.customer.contact,
         },
-        method: PAYMENT_METHODS,
+        method: options.methods || PAYMENT_METHODS,
         theme: {
           color: 'hsl(var(--primary))',
         },
