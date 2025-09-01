@@ -3,12 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Check, Zap, Crown, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
+import { PaymentButton } from "@/components/PaymentButton";
 
 const Pricing = () => {
   const plans = [
     {
       name: "Free",
       price: "₹0",
+      amount: 0,
       period: "forever",
       description: "Perfect for trying SlideForge AI",
       icon: Zap,
@@ -29,6 +31,7 @@ const Pricing = () => {
     {
       name: "Pro",
       price: "₹1,599",
+      amount: 1599,
       period: "per month",
       description: "For professionals and small teams",
       icon: Crown,
@@ -49,6 +52,7 @@ const Pricing = () => {
     {
       name: "Enterprise",
       price: "₹3,999",
+      amount: 3999,
       period: "per month",
       description: "For large teams and organizations",
       icon: Star,
@@ -131,19 +135,40 @@ const Pricing = () => {
                     ))}
                   </div>
                   
-                  <Button 
-                    className={`w-full ${
-                      plan.popular 
-                        ? 'bg-gradient-to-r from-primary to-accent' 
-                        : ''
-                    }`}
-                    variant={plan.popular ? 'default' : 'outline'}
-                    asChild
-                  >
-                    <Link to={plan.name === 'Enterprise' ? '/contact' : '/auth'}>
+                  {plan.name === 'Free' ? (
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      asChild
+                    >
+                      <Link to="/auth">
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  ) : plan.name === 'Enterprise' ? (
+                    <Button 
+                      className="w-full"
+                      variant="outline"
+                      asChild
+                    >
+                      <Link to="/contact">
+                        {plan.cta}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <PaymentButton
+                      planName={plan.name}
+                      amount={plan.amount}
+                      variant={plan.popular ? 'default' : 'outline'}
+                      className={`w-full ${
+                        plan.popular 
+                          ? 'bg-gradient-to-r from-primary to-accent' 
+                          : ''
+                      }`}
+                    >
                       {plan.cta}
-                    </Link>
-                  </Button>
+                    </PaymentButton>
+                  )}
                 </CardContent>
               </Card>
             );
