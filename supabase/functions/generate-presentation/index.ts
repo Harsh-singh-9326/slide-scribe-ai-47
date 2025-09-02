@@ -147,7 +147,7 @@ serve(async (req) => {
       );
     }
 
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const geminiApiKey = "AIzaSyD5jNyxXaWZFDL9r3NgpTJcl-5FSujLXOY";
     if (!geminiApiKey) {
       return new Response(
         JSON.stringify({ error: 'Gemini API key not configured' }),
