@@ -21,6 +21,24 @@ import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+interface Slide {
+  id: string;
+  title: string;
+  content: string;
+  notes: string;
+  design_suggestion?: {
+    layout?: string;
+    image_url?: string;
+    style?: {
+      background_color?: string;
+      primary_color?: string;
+      secondary_color?: string;
+      accent_color?: string;
+    };
+  };
+  layout?: string;
+}
+
 const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -29,7 +47,7 @@ const Editor = () => {
   const [currentTheme, setCurrentTheme] = useState('modern');
   const [isSaving, setIsSaving] = useState(false);
   const [presentation, setPresentation] = useState<any>(null);
-  const [slides, setSlides] = useState([
+  const [slides, setSlides] = useState<Slide[]>([
     {
       id: "1",
       title: "Introduction to Marketing Strategy",
@@ -103,23 +121,39 @@ const Editor = () => {
       setPresentation(presentationData);
       setCurrentTheme(presentationData.theme || 'modern');
       
-      // Load slides
-      const { data: slidesData, error: slidesError } = await supabase
-        .from('slides')
-        .select('*')
-        .eq('presentation_id', id)
-        .order('slide_order');
-
-      if (slidesError) throw slidesError;
-
-      if (slidesData && slidesData.length > 0) {
-        const formattedSlides = slidesData.map(slide => ({
-          id: slide.id,
-          title: slide.title,
-          content: slide.content || '',
-          notes: slide.notes || ''
+      // Use AI-generated content if available, otherwise load from slides table
+      if (presentationData.content && Array.isArray(presentationData.content)) {
+        const formattedSlides = presentationData.content.map((slide: any, index: number) => ({
+          id: slide.id || index.toString(),
+          title: slide.slide_title || slide.title || 'Untitled Slide',
+          content: Array.isArray(slide.content_bullets) 
+            ? slide.content_bullets.map((bullet: string) => `• ${bullet}`).join('\n')
+            : slide.content || '',
+          notes: slide.speaker_notes || slide.notes || '',
+          design_suggestion: slide.design_suggestion,
+          layout: slide.design_suggestion?.layout || 'title-content'
         }));
         setSlides(formattedSlides);
+      } else {
+        // Fallback to slides table
+        const { data: slidesData, error: slidesError } = await supabase
+          .from('slides')
+          .select('*')
+          .eq('presentation_id', id)
+          .order('slide_order');
+
+        if (slidesError) throw slidesError;
+
+        if (slidesData && slidesData.length > 0) {
+          const formattedSlides = slidesData.map(slide => ({
+            id: slide.id,
+            title: slide.title,
+            content: slide.content || '',
+            notes: slide.notes || '',
+            layout: slide.layout || 'title-content'
+          }));
+          setSlides(formattedSlides);
+        }
       }
     } catch (error: any) {
       console.error('Error loading presentation:', error);
@@ -325,6 +359,19 @@ const Editor = () => {
   };
 
   const getThemeStyles = () => {
+    // Use AI-generated style if available
+    const currentSlide = slides[selectedSlide];
+    if (currentSlide?.design_suggestion?.style) {
+      const aiStyle = currentSlide.design_suggestion.style;
+      return {
+        background: aiStyle.background_color || '#ffffff',
+        titleColor: aiStyle.primary_color || '#2c3e50',
+        contentColor: aiStyle.secondary_color || '#7f8c8d',
+        accentColor: aiStyle.accent_color || '#667eea'
+      };
+    }
+
+    // Fallback to preset themes
     const themes = {
       modern: {
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -349,6 +396,25 @@ const Editor = () => {
         titleColor: '#2c3e50',
         contentColor: '#7f8c8d',
         accentColor: '#95a5a6'
+      },
+      // AI preset themes
+      vibrant: {
+        background: 'linear-gradient(135deg, #1A202C 0%, #2D3748 100%)',
+        titleColor: '#F56565',
+        contentColor: '#48BB78',
+        accentColor: '#ED8936'
+      },
+      corporate: {
+        background: '#F7FAFC',
+        titleColor: '#2B6CB0',
+        contentColor: '#4A5568',
+        accentColor: '#38B2AC'
+      },
+      dark: {
+        background: 'linear-gradient(135deg, #111111 0%, #1a1a1a 100%)',
+        titleColor: '#00D4FF',
+        contentColor: '#FF6B6B',
+        accentColor: '#4ECDC4'
       }
     };
     return themes[currentTheme as keyof typeof themes] || themes.modern;
