@@ -17,6 +17,7 @@ const Create = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [template, setTemplate] = useState("");
   const [slideCount, setSlideCount] = useState("auto");
+  const [stylePreset, setStylePreset] = useState("minimal");
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
@@ -159,7 +160,8 @@ const Create = () => {
         body: {
           prompt,
           slideCount: slideCount === 'auto' ? 8 : parseInt(slideCount),
-          theme: template || 'modern'
+          theme: template || 'modern',
+          stylePreset
         },
         headers: {
           Authorization: `Bearer ${session?.access_token}`,
@@ -321,6 +323,41 @@ const Create = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="stylePreset">Visual Style (Gamma-like Design)</Label>
+                <Select value={stylePreset} onValueChange={setStylePreset}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose visual style" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minimal">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Minimal</span>
+                        <span className="text-xs text-muted-foreground">Clean white background, simple icons</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="vibrant">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Vibrant</span>
+                        <span className="text-xs text-muted-foreground">Bright colors, bold typography, full-width images</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="corporate">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Corporate</span>
+                        <span className="text-xs text-muted-foreground">Professional blue/gray palette, graphs</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="dark">
+                      <div className="flex flex-col">
+                        <span className="font-medium">Dark Mode</span>
+                        <span className="text-xs text-muted-foreground">Dark background, neon accents, high-contrast</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
