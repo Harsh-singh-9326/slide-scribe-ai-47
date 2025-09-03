@@ -824,76 +824,106 @@ const Editor = () => {
         </div>
 
         {/* Main Editor */}
-        <div className="flex-1 flex flex-col">
-          {/* Slide Preview */}
+        <div className="flex-1 flex">
+          {/* Slide Preview - Main Area */}
           <div className="flex-1 p-6 overflow-y-auto">
-            <Card className="max-w-4xl mx-auto">
-              <CardContent className="p-8">
-                <div className="space-y-6">
-                  {/* Theme Preview */}
-                  <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-muted-foreground/20">
-                    <div 
-                      className="p-6 rounded-lg text-center"
-                      style={{
-                        background: getThemeStyles().background,
-                        color: getThemeStyles().titleColor
-                      }}
-                    >
-                      <h3 className="text-lg font-semibold mb-2">Theme Preview: {currentTheme}</h3>
-                      <p style={{ color: getThemeStyles().contentColor }}>
-                        This is how your slides will look with the {currentTheme} theme
-                      </p>
-                    </div>
-                  </div>
+            <div className="max-w-6xl mx-auto">
+              {/* Slide Preview */}
+              <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                {renderSlidePreview()}
+              </div>
 
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Slide Title
-                    </label>
-                    <Input
-                      value={slides[selectedSlide]?.title || ''}
-                      onChange={(e) => updateSlide('title', e.target.value)}
-                      className="mt-1 text-2xl font-bold border-0 px-0 focus-visible:ring-0"
-                      placeholder="Enter slide title..."
-                    />
+              {/* Theme Selector */}
+              <Card className="mb-6">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">Theme: {currentTheme}</h3>
+                    <Select value={currentTheme} onValueChange={setCurrentTheme}>
+                      <SelectTrigger className="w-48">
+                        <SelectValue placeholder="Select theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="modern">Modern - Purple gradient</SelectItem>
+                        <SelectItem value="professional">Professional - Dark blue</SelectItem>
+                        <SelectItem value="creative">Creative - Pink gradient</SelectItem>
+                        <SelectItem value="minimal">Minimal - Clean white</SelectItem>
+                        <SelectItem value="vibrant">Vibrant - Dark with colors</SelectItem>
+                        <SelectItem value="corporate">Corporate - Light blue</SelectItem>
+                        <SelectItem value="dark">Dark - High contrast</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Slide Content
-                    </label>
-                    <Textarea
-                      value={slides[selectedSlide]?.content || ''}
-                      onChange={(e) => updateSlide('content', e.target.value)}
-                      className="mt-1 min-h-40 border-0 px-0 focus-visible:ring-0 resize-none"
-                      placeholder="Enter slide content..."
-                    />
-                  </div>
-
-                  <div className="border-t pt-4">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Speaker Notes
-                    </label>
-                    <Textarea
-                      value={slides[selectedSlide]?.notes || ''}
-                      onChange={(e) => updateSlide('notes', e.target.value)}
-                      className="mt-1 min-h-20 border-0 px-0 focus-visible:ring-0 resize-none text-sm"
-                      placeholder="Add speaker notes for this slide..."
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          {/* Editor Footer */}
-          <div className="border-t p-4 bg-muted/20">
-            <div className="flex items-center justify-center space-x-4 text-sm text-muted-foreground">
-              <span>Slide {selectedSlide + 1} of {slides.length}</span>
-              <span>•</span>
-              <span>Use AI to enhance content</span>
-              <span>•</span>
-              <span>Auto-save enabled</span>
+          {/* Editing Panel */}
+          <div className="w-80 border-l bg-muted/10 overflow-y-auto">
+            <div className="p-4 space-y-6">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Slide Title
+                </label>
+                <Input
+                  value={slides[selectedSlide]?.title || ''}
+                  onChange={(e) => updateSlide('title', e.target.value)}
+                  className="text-lg font-semibold"
+                  placeholder="Enter slide title..."
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Slide Content
+                </label>
+                <Textarea
+                  value={slides[selectedSlide]?.content || ''}
+                  onChange={(e) => updateSlide('content', e.target.value)}
+                  className="min-h-32 resize-none"
+                  placeholder="Enter slide content..."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Speaker Notes
+                </label>
+                <Textarea
+                  value={slides[selectedSlide]?.notes || ''}
+                  onChange={(e) => updateSlide('notes', e.target.value)}
+                  className="min-h-20 resize-none text-sm"
+                  placeholder="Add speaker notes..."
+                />
+              </div>
+
+              {/* Layout Options */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Layout
+                </label>
+                <Select
+                  value={slides[selectedSlide]?.layout || 'title-content'}
+                  onValueChange={(value) => {
+                    const newSlides = [...slides];
+                    newSlides[selectedSlide] = {
+                      ...newSlides[selectedSlide],
+                      layout: value
+                    };
+                    setSlides(newSlides);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="title-content">Title + Content</SelectItem>
+                    <SelectItem value="hero">Hero Layout</SelectItem>
+                    <SelectItem value="two-column">Two Column</SelectItem>
+                    <SelectItem value="grid">Grid Layout</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>

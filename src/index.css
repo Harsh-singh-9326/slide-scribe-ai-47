@@ -41,7 +41,14 @@ All colors MUST be HSL.
     /* SlideForge AI Brand Colors */
     --gradient-primary: linear-gradient(135deg, hsl(259 94% 51%), hsl(280 100% 70%));
     --gradient-secondary: linear-gradient(135deg, hsl(210 40% 96.1%), hsl(220 13% 91%));
+    --gradient-modern: linear-gradient(135deg, hsl(259 94% 51%), hsl(280 100% 70%));
+    --gradient-professional: linear-gradient(135deg, hsl(220 13% 18%), hsl(220 13% 25%));
+    --gradient-creative: linear-gradient(135deg, hsl(330 81% 60%), hsl(280 87% 65%));
+    --gradient-vibrant: linear-gradient(135deg, hsl(220 13% 10%), hsl(220 13% 20%));
+    --gradient-corporate: linear-gradient(135deg, hsl(200 18% 46%), hsl(200 25% 55%));
+    --gradient-dark: linear-gradient(135deg, hsl(0 0% 7%), hsl(0 0% 10%));
     --shadow-glow: 0 0 40px hsl(259 94% 51% / 0.3);
+    --shadow-elegant: 0 20px 60px hsl(259 94% 51% / 0.15);
 
     --sidebar-background: 0 0% 98%;
 
