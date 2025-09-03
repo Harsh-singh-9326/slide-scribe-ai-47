@@ -358,6 +358,190 @@ const Editor = () => {
     pdf.save(`${presentation.title}.pdf`);
   };
 
+  const renderSlidePreview = () => {
+    const currentSlide = slides[selectedSlide];
+    if (!currentSlide) return null;
+
+    const themeStyles = getThemeStyles();
+    const layout = currentSlide.layout || 'title-content';
+    const imageUrl = currentSlide.design_suggestion?.image_url;
+
+    // Different layout renderers
+    const layouts = {
+      'hero': () => (
+        <div className="relative w-full h-full flex items-center justify-center text-center p-12">
+          {imageUrl && (
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-20"
+              style={{ backgroundImage: `url(${imageUrl})` }}
+            />
+          )}
+          <div className="relative z-10 max-w-3xl">
+            <h1 
+              className="text-5xl font-bold mb-8 leading-tight"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div 
+              className="text-xl leading-relaxed space-y-4"
+              style={{ color: themeStyles.contentColor }}
+            >
+              {currentSlide.content.split('\n').map((line, index) => (
+                <p key={index}>{line.replace('• ', '')}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      ),
+      
+      'two-column': () => (
+        <div className="w-full h-full flex p-12">
+          <div className="w-1/2 pr-8">
+            <h1 
+              className="text-4xl font-bold mb-6"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div 
+              className="text-lg leading-relaxed space-y-3"
+              style={{ color: themeStyles.contentColor }}
+            >
+              {currentSlide.content.split('\n').map((line, index) => (
+                <p key={index} className="flex items-start">
+                  {line.startsWith('• ') && (
+                    <span 
+                      className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0"
+                      style={{ backgroundColor: themeStyles.accentColor }}
+                    />
+                  )}
+                  <span>{line.replace('• ', '')}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+          <div className="w-1/2 flex items-center justify-center">
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt="Slide visual" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+              />
+            ) : (
+              <div 
+                className="w-64 h-64 rounded-lg flex items-center justify-center text-white/80"
+                style={{ backgroundColor: themeStyles.accentColor }}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">📊</span>
+                  </div>
+                  <p className="text-sm">Visual Content</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+      
+      'title-content': () => (
+        <div className="w-full h-full flex flex-col justify-center items-center text-center p-12">
+          {imageUrl && (
+            <div className="mb-8">
+              <img 
+                src={imageUrl} 
+                alt="Slide visual" 
+                className="max-w-xs max-h-48 object-contain rounded-lg shadow-lg mx-auto"
+              />
+            </div>
+          )}
+          <h1 
+            className="text-4xl font-bold mb-8 max-w-4xl"
+            style={{ color: themeStyles.titleColor }}
+          >
+            {currentSlide.title}
+          </h1>
+          <div 
+            className="text-xl leading-relaxed max-w-3xl space-y-4"
+            style={{ color: themeStyles.contentColor }}
+          >
+            {currentSlide.content.split('\n').map((line, index) => (
+              <p key={index} className="flex items-center justify-center">
+                {line.startsWith('• ') && (
+                  <span 
+                    className="w-2 h-2 rounded-full mr-4 flex-shrink-0"
+                    style={{ backgroundColor: themeStyles.accentColor }}
+                  />
+                )}
+                <span>{line.replace('• ', '')}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      ),
+      
+      'grid': () => {
+        const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
+        const gridItems = contentLines.map(line => line.replace('• ', ''));
+        
+        return (
+          <div className="w-full h-full p-12">
+            <h1 
+              className="text-4xl font-bold mb-12 text-center"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div className="grid grid-cols-2 gap-8 h-2/3">
+              {gridItems.slice(0, 4).map((item, index) => (
+                <div 
+                  key={index}
+                  className="rounded-lg p-6 flex flex-col items-center justify-center text-center shadow-lg"
+                  style={{ 
+                    backgroundColor: `${themeStyles.accentColor}20`,
+                    borderLeft: `4px solid ${themeStyles.accentColor}`
+                  }}
+                >
+                  <div 
+                    className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white font-bold"
+                    style={{ backgroundColor: themeStyles.accentColor }}
+                  >
+                    {index + 1}
+                  </div>
+                  <p 
+                    className="text-lg font-medium"
+                    style={{ color: themeStyles.contentColor }}
+                  >
+                    {item}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+    };
+
+    const LayoutComponent = layouts[layout as keyof typeof layouts] || layouts['title-content'];
+    
+    return (
+      <div 
+        className="w-full h-full relative"
+        style={{ background: themeStyles.background }}
+      >
+        <LayoutComponent />
+        {/* Slide number */}
+        <div 
+          className="absolute bottom-4 right-4 text-sm opacity-60"
+          style={{ color: themeStyles.titleColor }}
+        >
+          {selectedSlide + 1} / {slides.length}
+        </div>
+      </div>
+    );
+  };
+
   const getThemeStyles = () => {
     // Use AI-generated style if available
     const currentSlide = slides[selectedSlide];
