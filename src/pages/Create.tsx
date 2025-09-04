@@ -8,8 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, FileText, Wand2, Loader2 } from "lucide-react";
 import Header from "@/components/Header";
+import PromptEditor from "@/components/PromptEditor";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+
+interface GenerationSettings {
+  textAmount: number;
+  contentType: 'generate' | 'condense' | 'preserve';
+  viewMode: 'freeform' | 'card-by-card';
+  slideCount: number;
+  language: string;
+}
 
 const Create = () => {
   const [inputType, setInputType] = useState<"text" | "file">("text");
@@ -20,6 +29,9 @@ const Create = () => {
   const [stylePreset, setStylePreset] = useState("minimal");
   const [isGenerating, setIsGenerating] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [extractedContent, setExtractedContent] = useState("");
+  const [fileName, setFileName] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -45,16 +57,65 @@ const Create = () => {
     checkAuth();
   }, [navigate]);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
       if (allowedTypes.includes(file.type)) {
         setSelectedFile(file);
-        toast({
-          title: "File uploaded",
-          description: `${file.name} is ready for processing`,
-        });
+        setFileName(file.name);
+        
+        // Check if guest user
+        const guestUser = localStorage.getItem('guest_user');
+        if (guestUser) {
+          toast({
+            title: "Guest Mode Limitation",
+            description: "File upload processing is not available in guest mode. Please sign up for an account.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Process file immediately and show prompt editor
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            toast({
+              title: "Authentication Required",
+              description: "Please sign in to process files.",
+              variant: "destructive",
+            });
+            navigate('/auth');
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const fileResponse = await supabase.functions.invoke('process-file', {
+            body: formData,
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            }
+          });
+
+          if (fileResponse.error) throw fileResponse.error;
+          
+          setExtractedContent(fileResponse.data.text);
+          setShowPromptEditor(true);
+          
+          toast({
+            title: "File processed",
+            description: `${file.name} content extracted successfully`,
+          });
+        } catch (error: any) {
+          console.error('File processing error:', error);
+          toast({
+            title: "Processing Failed",
+            description: error.message || "Failed to process file. Please try again.",
+            variant: "destructive",
+          });
+        }
       } else {
         toast({
           title: "Invalid file type",
@@ -65,11 +126,88 @@ const Create = () => {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!textContent.trim() && !selectedFile) {
+  const handlePromptEditorGenerate = async (content: string, settings: GenerationSettings) => {
+    setIsGenerating(true);
+    
+    try {
+      // Check if user is guest
+      const guestUser = localStorage.getItem('guest_user');
+      
+      if (guestUser) {
+        // For guest users, create a mock presentation and store in localStorage
+        const mockPresentation = {
+          id: 'guest-' + Date.now(),
+          title: content.substring(0, 50) + '...',
+          theme: template || 'modern',
+          slide_count: settings.slideCount,
+          content: Array.from({ length: settings.slideCount }, (_, i) => ({
+            title: `Slide ${i + 1}`,
+            content: content.substring(i * 100, (i + 1) * 100) + '...',
+            layout: 'title-content',
+            notes: 'Speaker notes for this slide'
+          })),
+          created_at: new Date().toISOString(),
+          user_id: guestUser
+        };
+
+        // Store in localStorage
+        const existingPresentations = JSON.parse(localStorage.getItem('guest_presentations') || '[]');
+        existingPresentations.unshift(mockPresentation);
+        localStorage.setItem('guest_presentations', JSON.stringify(existingPresentations));
+
+        toast({
+          title: "Demo Presentation Created!",
+          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides in demo mode.`,
+        });
+        
+        navigate(`/editor/${mockPresentation.id}`);
+        return;
+      }
+
+      // Generate presentation with AI (for authenticated users)
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('generate-presentation', {
+        body: {
+          prompt: content,
+          slideCount: settings.slideCount,
+          theme: template || 'modern',
+          stylePreset,
+          textAmount: settings.textAmount,
+          contentType: settings.contentType,
+          language: settings.language
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        }
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Presentation Generated!",
+        description: `Created "${response.data.presentation.title}" with ${response.data.presentation.slides.length} slides.`,
+      });
+      
+      // Navigate to editor with the new presentation
+      navigate(`/editor/${response.data.presentation.id}`);
+      
+    } catch (error: any) {
+      console.error('Generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate presentation. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleTextGenerate = async () => {
+    if (!textContent.trim()) {
       toast({
         title: "Input Required",
-        description: "Please provide either text content or upload a file.",
+        description: "Please provide text content.",
         variant: "destructive",
       });
       return;
@@ -92,36 +230,6 @@ const Create = () => {
       
       // Check if user is guest
       const guestUser = localStorage.getItem('guest_user');
-      
-      // If file is selected and user is not guest, process it first
-      if (selectedFile && inputType === "file") {
-        if (guestUser) {
-          toast({
-            title: "Guest Mode Limitation",
-            description: "File upload is not available in guest mode. Please sign up for an account or paste text content.",
-            variant: "destructive",
-          });
-          setIsGenerating(false);
-          return;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Not authenticated');
-
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const fileResponse = await supabase.functions.invoke('process-file', {
-          body: formData,
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          }
-        });
-
-        if (fileResponse.error) throw fileResponse.error;
-        
-        prompt = fileResponse.data.text;
-      }
 
       if (guestUser) {
         // For guest users, create a mock presentation and store in localStorage
@@ -189,6 +297,24 @@ const Create = () => {
       setIsGenerating(false);
     }
   };
+
+  // Show prompt editor if file was processed
+  if (showPromptEditor) {
+    return (
+      <PromptEditor
+        initialContent={extractedContent}
+        fileName={fileName}
+        onBack={() => {
+          setShowPromptEditor(false);
+          setExtractedContent('');
+          setSelectedFile(null);
+          setFileName('');
+        }}
+        onGenerate={handlePromptEditorGenerate}
+        isGenerating={isGenerating}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -365,8 +491,8 @@ const Create = () => {
           <Card>
             <CardContent className="pt-6">
               <Button 
-                onClick={handleGenerate}
-                disabled={isGenerating}
+                onClick={handleTextGenerate}
+                disabled={isGenerating || inputType === 'file'}
                 className="w-full bg-gradient-to-r from-primary to-accent text-lg py-6"
               >
                 {isGenerating ? (
