@@ -11,6 +11,8 @@ import Header from "@/components/Header";
 import PromptEditor from "@/components/PromptEditor";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import * as pdfjsLib from 'pdfjs-dist';
+import * as mammoth from 'mammoth';
 
 interface GenerationSettings {
   textAmount: number;
@@ -34,6 +36,79 @@ const Create = () => {
   const [fileName, setFileName] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Set up PDF.js worker
+  useEffect(() => {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  }, []);
+
+  // Client-side PDF text extraction
+  const extractPDFText = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      let fullText = '';
+      const maxPages = Math.min(pdf.numPages, 50); // Limit to 50 pages
+      
+      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        
+        if (pageText.trim()) {
+          fullText += pageText + '\n\n';
+        }
+      }
+      
+      return fullText.trim() || 'No readable text found in PDF';
+    } catch (error) {
+      console.error('PDF parsing error:', error);
+      throw new Error('Unable to extract text from this PDF. The file might be image-based, password-protected, or corrupted.');
+    }
+  };
+
+  // Client-side DOCX text extraction using mammoth.js
+  const extractDOCXText = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value || 'No readable text found in DOCX file';
+    } catch (error) {
+      console.error('DOCX parsing error:', error);
+      throw new Error('Unable to process DOCX file. Please try converting to PDF or TXT format.');
+    }
+  };
+
+  // Client-side TXT text extraction
+  const extractTXTText = async (file: File): Promise<string> => {
+    try {
+      const text = await file.text();
+      return text;
+    } catch (error) {
+      console.error('TXT parsing error:', error);
+      throw new Error('Unable to read text file.');
+    }
+  };
+
+  // Process file client-side
+  const processFileClientSide = async (file: File): Promise<string> => {
+    const fileType = file.type;
+    
+    switch (fileType) {
+      case 'application/pdf':
+        return await extractPDFText(file);
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return await extractDOCXText(file);
+      case 'text/plain':
+        return await extractTXTText(file);
+      default:
+        throw new Error('Unsupported file type. Please upload PDF, DOCX, or TXT files.');
+    }
+  };
 
   useEffect(() => {
     // Check authentication
@@ -64,44 +139,13 @@ const Create = () => {
       if (allowedTypes.includes(file.type)) {
         setSelectedFile(file);
         setFileName(file.name);
-        
-        // Check if guest user
-        const guestUser = localStorage.getItem('guest_user');
-        if (guestUser) {
-          toast({
-            title: "Guest Mode Limitation",
-            description: "File upload processing is not available in guest mode. Please sign up for an account.",
-            variant: "destructive",
-          });
-          return;
-        }
 
         // Process file immediately and show prompt editor
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session) {
-            toast({
-              title: "Authentication Required",
-              description: "Please sign in to process files.",
-              variant: "destructive",
-            });
-            navigate('/auth');
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append('file', file);
-
-          const fileResponse = await supabase.functions.invoke('process-file', {
-            body: formData,
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            }
-          });
-
-          if (fileResponse.error) throw fileResponse.error;
+          // Process file client-side instead of using edge function
+          const extractedText = await processFileClientSide(file);
           
-          setExtractedContent(fileResponse.data.text);
+          setExtractedContent(extractedText);
           setShowPromptEditor(true);
           
           toast({
