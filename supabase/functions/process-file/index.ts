@@ -1,41 +1,56 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// Add PDF text extraction using PDF.js (Deno compatible)
+// Add PDF text extraction using pdf2json (Deno compatible)
 async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Import PDF.js which is more compatible with Deno
-    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@3.11.174');
+    // Use pdf2json which works better with Deno
+    const pdf2json = await import('https://esm.sh/pdf2json@3.0.4');
     
-    // Configure PDF.js worker
-    const pdfDoc = await pdfjsLib.getDocument({
-      data: new Uint8Array(pdfBuffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true
-    }).promise;
-    
-    let fullText = '';
-    
-    // Extract text from each page
-    for (let pageNum = 1; pageNum <= Math.min(pdfDoc.numPages, 50); pageNum++) {
-      const page = await pdfDoc.getPage(pageNum);
-      const textContent = await page.getTextContent();
+    return new Promise((resolve, reject) => {
+      const pdfParser = new pdf2json.default();
       
-      const pageText = textContent.items
-        .filter((item: any) => item.str && item.str.trim())
-        .map((item: any) => item.str)
-        .join(' ');
+      pdfParser.on("pdfParser_dataError", (errData: any) => {
+        console.error('PDF parsing error:', errData.parserError);
+        reject(new Error('Unable to extract text from this PDF. The file might be image-based, password-protected, or corrupted.'));
+      });
       
-      if (pageText.trim()) {
-        fullText += pageText + '\n\n';
-      }
-    }
-    
-    return fullText.trim() || 'No readable text found in PDF';
+      pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+        try {
+          let fullText = '';
+          
+          if (pdfData.Pages && Array.isArray(pdfData.Pages)) {
+            for (const page of pdfData.Pages.slice(0, 50)) { // Limit to 50 pages
+              if (page.Texts && Array.isArray(page.Texts)) {
+                const pageText = page.Texts
+                  .map((text: any) => {
+                    if (text.R && Array.isArray(text.R)) {
+                      return text.R.map((r: any) => decodeURIComponent(r.T || '')).join(' ');
+                    }
+                    return '';
+                  })
+                  .filter((text: string) => text.trim())
+                  .join(' ');
+                
+                if (pageText.trim()) {
+                  fullText += pageText + '\n\n';
+                }
+              }
+            }
+          }
+          
+          resolve(fullText.trim() || 'No readable text found in PDF');
+        } catch (parseError) {
+          console.error('Text extraction error:', parseError);
+          reject(new Error('Failed to extract text from PDF content'));
+        }
+      });
+      
+      // Parse the PDF buffer
+      pdfParser.parseBuffer(Buffer.from(pdfBuffer));
+    });
   } catch (error) {
     console.error('PDF parsing error:', error);
-    // Fallback error message that's more helpful
     throw new Error('Unable to extract text from this PDF. The file might be image-based, password-protected, or corrupted. Please try converting it to text first or use the text input option.');
   }
 }
