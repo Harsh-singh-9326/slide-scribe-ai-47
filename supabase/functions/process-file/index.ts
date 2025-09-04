@@ -1,15 +1,42 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// Add PDF text extraction using pdf-parse
+// Add PDF text extraction using PDF.js (Deno compatible)
 async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
-    const data = await pdfParse.default(new Uint8Array(pdfBuffer));
-    return data.text;
+    // Import PDF.js which is more compatible with Deno
+    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@3.11.174');
+    
+    // Configure PDF.js worker
+    const pdfDoc = await pdfjsLib.getDocument({
+      data: new Uint8Array(pdfBuffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true
+    }).promise;
+    
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= Math.min(pdfDoc.numPages, 50); pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      const pageText = textContent.items
+        .filter((item: any) => item.str && item.str.trim())
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      if (pageText.trim()) {
+        fullText += pageText + '\n\n';
+      }
+    }
+    
+    return fullText.trim() || 'No readable text found in PDF';
   } catch (error) {
     console.error('PDF parsing error:', error);
-    throw new Error('Failed to parse PDF content');
+    // Fallback error message that's more helpful
+    throw new Error('Unable to extract text from this PDF. The file might be image-based, password-protected, or corrupted. Please try converting it to text first or use the text input option.');
   }
 }
 
