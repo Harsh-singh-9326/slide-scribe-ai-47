@@ -20,6 +20,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PresentationGenerator } from "@/lib/presentationGenerator";
 
 interface Slide {
   id: string;
@@ -235,39 +236,21 @@ const Editor = () => {
 
   const handleExport = async (format: 'pptx' | 'pdf') => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Authentication Required",
-          description: "Please sign in to export your presentation",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!id || id === 'new') {
-        toast({
-          title: "Save Required",
-          description: "Please save your presentation before exporting",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const presentationData = {
-        title: presentation?.title || "Presentation",
+        title: presentation?.title || "AI Generated Presentation",
+        theme: currentTheme,
         ...presentation
       };
 
       if (format === 'pptx') {
-        await generatePPTX(presentationData, slides);
+        await generateRichPPTX(presentationData, slides);
       } else {
         await generatePDF(presentationData, slides);
       }
 
       toast({
         title: "Export Complete",
-        description: `Your ${format.toUpperCase()} has been downloaded`,
+        description: `Your ${format.toUpperCase()} has been downloaded successfully!`,
       });
     } catch (error: any) {
       console.error('Export error:', error);
@@ -276,6 +259,44 @@ const Editor = () => {
         description: error.message || "Failed to export presentation",
         variant: "destructive",
       });
+    }
+  };
+
+  // Enhanced PPTX generation using the new client-side generator
+  const generateRichPPTX = async (presentation: any, slides: any[]) => {
+    try {
+      // Convert slides to the format expected by PresentationGenerator
+      const slideContent = slides.map(slide => ({
+        title: slide.title,
+        content: slide.content,
+        notes: slide.notes,
+        layout: slide.layout || 'content'
+      }));
+
+      // Generate settings based on current configuration
+      const settings = {
+        textAmount: 3, // Medium amount
+        contentType: 'preserve' as const,
+        viewMode: 'card-by-card' as const,
+        slideCount: slides.length,
+        language: 'en'
+      };
+
+      // Use the rich presentation generator
+      await PresentationGenerator.generatePresentation(
+        slides.map(s => s.content).join('\n\n'),
+        settings,
+        currentTheme
+      );
+
+      toast({
+        title: "PPTX Export Complete",
+        description: "Your rich presentation has been downloaded with professional design!",
+      });
+    } catch (error) {
+      console.error('Rich PPTX generation error:', error);
+      // Fallback to basic PPTX generation
+      await generatePPTX(presentation, slides);
     }
   };
 

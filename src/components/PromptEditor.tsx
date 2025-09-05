@@ -73,44 +73,102 @@ const PromptEditor: React.FC<PromptEditorProps> = ({
   );
 
   const renderCardByCardView = () => {
-    // Split content into cards based on paragraphs
-    const cards = content.split('\n\n').filter(card => card.trim().length > 0);
+    // Split content into cards based on paragraphs or sentences
+    const paragraphs = content.split('\n\n').filter(p => p.trim());
+    const cards = paragraphs.length > 0 ? paragraphs : [content];
+    
+    const updateCard = (index: number, newValue: string) => {
+      const newCards = [...cards];
+      newCards[index] = newValue;
+      setContent(newCards.join('\n\n'));
+    };
+    
+    const removeCard = (index: number) => {
+      if (cards.length > 1) {
+        const newCards = cards.filter((_, i) => i !== index);
+        setContent(newCards.join('\n\n'));
+      }
+    };
+    
+    const addCard = () => {
+      setContent(content + '\n\nNew slide content...');
+    };
+    
+    const getCardPreview = (cardContent: string) => {
+      const firstSentence = cardContent.split(/[.!?]+/)[0];
+      return firstSentence?.trim().substring(0, 50) || 'Untitled Card';
+    };
     
     return (
       <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <LayoutGrid className="w-4 h-4" />
+            <span className="text-sm font-medium text-muted-foreground">
+              {cards.length} cards • Card-by-card view
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addCard}
+            className="text-sm"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add Card
+          </Button>
+        </div>
+
         {cards.map((card, index) => (
-          <Card key={index} className="bg-blue-50/50 border-blue-200">
+          <Card key={index} className="bg-gradient-to-r from-blue-50/30 to-indigo-50/30 border-blue-200/50 hover:border-blue-300/70 transition-colors">
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700">
-                  {index + 1}
-                </Badge>
-                <span className="text-sm font-medium">
-                  {card.split('\n')[0]?.substring(0, 60) || `Card ${index + 1}`}...
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-blue-100 text-blue-700 font-medium">
+                    {index + 1}
+                  </Badge>
+                  <span className="text-sm font-medium text-foreground">
+                    {getCardPreview(card)}
+                    {getCardPreview(card).length >= 50 && '...'}
+                  </span>
+                </div>
+                {cards.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeCard(index)}
+                    className="text-muted-foreground hover:text-destructive h-6 w-6 p-0"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
               <Textarea
                 value={card}
-                onChange={(e) => {
-                  const newCards = [...cards];
-                  newCards[index] = e.target.value;
-                  setContent(newCards.join('\n\n'));
-                }}
-                className="min-h-[100px] border-0 p-0 focus-visible:ring-0 resize-none bg-transparent"
-                placeholder="Card content..."
+                onChange={(e) => updateCard(index, e.target.value)}
+                className="min-h-[120px] border-0 p-0 focus-visible:ring-0 resize-none bg-transparent text-sm leading-relaxed"
+                placeholder="Enter slide content here..."
               />
+              <div className="mt-2 text-xs text-muted-foreground">
+                {card.trim().split(' ').length} words • 
+                {Math.ceil(card.trim().split(' ').length / 150)} min read
+              </div>
             </CardContent>
           </Card>
         ))}
         
-        <Button
-          variant="outline"
-          className="w-full border-dashed"
-          onClick={() => setContent(content + '\n\nNew slide content...')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add new card
-        </Button>
+        {cards.length === 0 && (
+          <Card className="border-dashed border-2 border-muted">
+            <CardContent className="p-8 text-center">
+              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground mb-4">No content available</p>
+              <Button variant="outline" onClick={addCard}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Card
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     );
   };

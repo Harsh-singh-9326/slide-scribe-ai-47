@@ -11,7 +11,9 @@ import Header from "@/components/Header";
 import PromptEditor from "@/components/PromptEditor";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PresentationGenerator } from "@/lib/presentationGenerator";
 import * as pdfjsLib from 'pdfjs-dist';
+import { PDFDocument } from 'pdf-lib';
 import * as mammoth from 'mammoth';
 
 interface GenerationSettings {
@@ -37,36 +39,93 @@ const Create = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Set up PDF.js worker
+  // Set up PDF.js worker with proper version
   useEffect(() => {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).toString();
   }, []);
 
-  // Client-side PDF text extraction
+  // Enhanced PDF text extraction with multiple fallback methods
   const extractPDFText = async (file: File): Promise<string> => {
     try {
+      // Method 1: Try PDF.js first
+      console.log('Attempting PDF.js extraction...');
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
-      let fullText = '';
-      const maxPages = Math.min(pdf.numPages, 50); // Limit to 50 pages
-      
-      for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
+      try {
+        const pdf = await pdfjsLib.getDocument({ 
+          data: arrayBuffer,
+          verbosity: 0 // Reduce console spam
+        }).promise;
         
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
+        let fullText = '';
+        const maxPages = Math.min(pdf.numPages, 50); // Limit to 50 pages
         
-        if (pageText.trim()) {
-          fullText += pageText + '\n\n';
+        for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          
+          if (pageText.trim()) {
+            fullText += pageText + '\n\n';
+          }
         }
+        
+        if (fullText.trim()) {
+          console.log('PDF.js extraction successful');
+          return fullText.trim();
+        }
+      } catch (pdfjsError) {
+        console.log('PDF.js failed, trying pdf-lib...', pdfjsError);
       }
+
+      // Method 2: Try pdf-lib as fallback
+      try {
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const pages = pdfDoc.getPages();
+        let fullText = '';
+        
+        // pdf-lib doesn't have built-in text extraction, but we can try to get form fields or annotations
+        // This is a basic attempt - for complex PDFs, external services might be needed
+        for (let i = 0; i < Math.min(pages.length, 50); i++) {
+          const page = pages[i];
+          // Try to get any text from form fields or annotations
+          try {
+            const form = pdfDoc.getForm();
+            const fields = form.getFields();
+            for (const field of fields) {
+              if (field.constructor.name === 'PDFTextField') {
+                const textField = field as any;
+                const value = textField.getText();
+                if (value) fullText += value + ' ';
+              }
+            }
+          } catch (formError) {
+            // No form fields, continue
+          }
+        }
+        
+        if (fullText.trim()) {
+          console.log('pdf-lib extraction successful');
+          return fullText.trim();
+        }
+      } catch (pdflibError) {
+        console.log('pdf-lib failed:', pdflibError);
+      }
+
+      // Method 3: Fallback message for image-based or complex PDFs
+      throw new Error('This PDF appears to contain images or scanned content. Please try:\n• Converting to a text-based PDF\n• Using OCR software first\n• Copying and pasting the text manually');
       
-      return fullText.trim() || 'No readable text found in PDF';
     } catch (error) {
-      console.error('PDF parsing error:', error);
+      console.error('All PDF parsing methods failed:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Unable to extract text from this PDF. The file might be image-based, password-protected, or corrupted.');
     }
   };
@@ -149,8 +208,8 @@ const Create = () => {
           setShowPromptEditor(true);
           
           toast({
-            title: "File processed",
-            description: `${file.name} content extracted successfully`,
+            title: "File processed successfully!",
+            description: `Successfully extracted content from ${file.name}`,
           });
         } catch (error: any) {
           console.error('File processing error:', error);
@@ -178,17 +237,24 @@ const Create = () => {
       const guestUser = localStorage.getItem('guest_user');
       
       if (guestUser) {
-        // For guest users, create a mock presentation and store in localStorage
+        // Generate presentation client-side for guests
+        const { slides } = await PresentationGenerator.generatePresentation(
+          content, 
+          settings, 
+          template || 'modern'
+        );
+        
         const mockPresentation = {
           id: 'guest-' + Date.now(),
-          title: content.substring(0, 50) + '...',
+          title: slides[0]?.title || content.substring(0, 50) + '...',
           theme: template || 'modern',
-          slide_count: settings.slideCount,
-          content: Array.from({ length: settings.slideCount }, (_, i) => ({
-            title: `Slide ${i + 1}`,
-            content: content.substring(i * 100, (i + 1) * 100) + '...',
-            layout: 'title-content',
-            notes: 'Speaker notes for this slide'
+          slide_count: slides.length,
+          content: slides.map((slide, i) => ({
+            id: i.toString(),
+            title: slide.title,
+            content: slide.content,
+            layout: slide.layout || 'title-content',
+            notes: slide.notes || 'Speaker notes for this slide'
           })),
           created_at: new Date().toISOString(),
           user_id: guestUser
@@ -200,40 +266,49 @@ const Create = () => {
         localStorage.setItem('guest_presentations', JSON.stringify(existingPresentations));
 
         toast({
-          title: "Demo Presentation Created!",
-          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides in demo mode.`,
+          title: "Presentation Generated!",
+          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides using AI.`,
         });
         
         navigate(`/editor/${mockPresentation.id}`);
         return;
       }
 
-      // Generate presentation with AI (for authenticated users)
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke('generate-presentation', {
-        body: {
-          prompt: content,
-          slideCount: settings.slideCount,
-          theme: template || 'modern',
-          stylePreset,
-          textAmount: settings.textAmount,
-          contentType: settings.contentType,
-          language: settings.language
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        }
-      });
+      // Generate presentation client-side for authenticated users too
+      const { slides } = await PresentationGenerator.generatePresentation(
+        content, 
+        settings, 
+        template || 'modern'
+      );
 
-      if (response.error) throw response.error;
+      // Save to Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: presentation, error } = await supabase
+        .from('presentations')
+        .insert({
+          user_id: session?.user?.id,
+          title: slides[0]?.title || content.substring(0, 50) + '...',
+          theme: template || 'modern',
+          slide_count: slides.length,
+          content: slides.map((slide, i) => ({
+            id: i.toString(),
+            slide_title: slide.title,
+            content_bullets: slide.content.split('\n').filter(line => line.trim()),
+            speaker_notes: slide.notes || '',
+            layout: slide.layout || 'title-content'
+          }))
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
 
       toast({
         title: "Presentation Generated!",
-        description: `Created "${response.data.presentation.title}" with ${response.data.presentation.slides.length} slides.`,
+        description: `Created "${presentation.title}" with ${presentation.slide_count} slides using AI.`,
       });
       
-      // Navigate to editor with the new presentation
-      navigate(`/editor/${response.data.presentation.id}`);
+      navigate(`/editor/${presentation.id}`);
       
     } catch (error: any) {
       console.error('Generation error:', error);
@@ -270,23 +345,37 @@ const Create = () => {
     setIsGenerating(true);
     
     try {
-      let prompt = textContent;
+      // Generate settings
+      const settings = {
+        textAmount: 2, // Balanced
+        contentType: 'generate' as const,
+        viewMode: 'freeform' as const,
+        slideCount: slideCount === 'auto' ? 8 : parseInt(slideCount),
+        language: 'en'
+      };
       
       // Check if user is guest
       const guestUser = localStorage.getItem('guest_user');
 
       if (guestUser) {
-        // For guest users, create a mock presentation and store in localStorage
+        // Generate presentation client-side for guests
+        const { slides } = await PresentationGenerator.generatePresentation(
+          textContent, 
+          settings, 
+          template || 'modern'
+        );
+        
         const mockPresentation = {
           id: 'guest-' + Date.now(),
-          title: prompt.substring(0, 50) + '...',
+          title: slides[0]?.title || textContent.substring(0, 50) + '...',
           theme: template || 'modern',
-          slide_count: slideCount === 'auto' ? 8 : parseInt(slideCount),
-          content: Array.from({ length: slideCount === 'auto' ? 8 : parseInt(slideCount) }, (_, i) => ({
-            title: `Slide ${i + 1}`,
-            content: `This is slide ${i + 1} content based on: ${prompt.substring(0, 100)}...`,
-            layout: 'title-content',
-            notes: 'Speaker notes for this slide'
+          slide_count: slides.length,
+          content: slides.map((slide, i) => ({
+            id: i.toString(),
+            title: slide.title,
+            content: slide.content,
+            layout: slide.layout || 'title-content',
+            notes: slide.notes || 'Speaker notes for this slide'
           })),
           created_at: new Date().toISOString(),
           user_id: guestUser
@@ -298,37 +387,49 @@ const Create = () => {
         localStorage.setItem('guest_presentations', JSON.stringify(existingPresentations));
 
         toast({
-          title: "Demo Presentation Created!",
-          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides in demo mode.`,
+          title: "Presentation Generated!",
+          description: `Created "${mockPresentation.title}" with ${mockPresentation.slide_count} slides using AI.`,
         });
         
         navigate(`/editor/${mockPresentation.id}`);
         return;
       }
 
-      // Generate presentation with AI (for authenticated users)
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke('generate-presentation', {
-        body: {
-          prompt,
-          slideCount: slideCount === 'auto' ? 8 : parseInt(slideCount),
-          theme: template || 'modern',
-          stylePreset
-        },
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-        }
-      });
+      // Generate presentation client-side for authenticated users
+      const { slides } = await PresentationGenerator.generatePresentation(
+        textContent, 
+        settings, 
+        template || 'modern'
+      );
 
-      if (response.error) throw response.error;
+      // Save to Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data: presentation, error } = await supabase
+        .from('presentations')
+        .insert({
+          user_id: session?.user?.id,
+          title: slides[0]?.title || textContent.substring(0, 50) + '...',
+          theme: template || 'modern',
+          slide_count: slides.length,
+          content: slides.map((slide, i) => ({
+            id: i.toString(),
+            slide_title: slide.title,
+            content_bullets: slide.content.split('\n').filter(line => line.trim()),
+            speaker_notes: slide.notes || '',
+            layout: slide.layout || 'title-content'
+          }))
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
 
       toast({
         title: "Presentation Generated!",
-        description: `Created "${response.data.presentation.title}" with ${response.data.presentation.slides.length} slides.`,
+        description: `Created "${presentation.title}" with ${presentation.slide_count} slides using AI.`,
       });
       
-      // Navigate to editor with the new presentation
-      navigate(`/editor/${response.data.presentation.id}`);
+      navigate(`/editor/${presentation.id}`);
       
     } catch (error: any) {
       console.error('Generation error:', error);
