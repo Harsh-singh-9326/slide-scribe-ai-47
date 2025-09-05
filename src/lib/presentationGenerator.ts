@@ -6,6 +6,8 @@ interface SlideContent {
   notes?: string;
   layout?: string;
   imageUrl?: string;
+  backgroundType?: 'gradient' | 'solid' | 'pattern';
+  icon?: string;
 }
 
 interface GenerationSettings {
@@ -16,43 +18,76 @@ interface GenerationSettings {
   language: string;
 }
 
-// Theme configurations for rich, Gamma-like presentations
+// Theme configurations for rich, Gamma-like presentations with advanced design
 const THEMES = {
   minimal: {
     background: '#FFFFFF',
+    backgroundSecondary: '#FAFAFA',
     primary: '#1A1A1A',
     secondary: '#666666',
     accent: '#007AFF',
-    font: 'Helvetica Neue'
+    accentLight: '#E3F2FD',
+    font: 'Helvetica Neue',
+    gradient: ['#FFFFFF', '#F5F7FA']
   },
   modern: {
-    background: '#F8F9FA',
+    background: '#FFFFFF',
+    backgroundSecondary: '#F8F9FA',
     primary: '#212529',
     secondary: '#6C757D',
     accent: '#0D6EFD',
-    font: 'Arial'
+    accentLight: '#E7F3FF',
+    font: 'Inter',
+    gradient: ['#FFFFFF', '#F8FAFC']
   },
   creative: {
     background: '#1A1A2E',
+    backgroundSecondary: '#16213E',
     primary: '#FFFFFF',
-    secondary: '#16213E',
+    secondary: '#A0AEC0',
     accent: '#E94560',
-    font: 'Impact'
+    accentLight: '#2D3748',
+    font: 'Poppins',
+    gradient: ['#1A1A2E', '#16213E']
   },
   professional: {
     background: '#FFFFFF',
-    primary: '#2C3E50',
-    secondary: '#7F8C8D',
-    accent: '#3498DB',
-    font: 'Calibri'
+    backgroundSecondary: '#F7FAFC',
+    primary: '#2D3748',
+    secondary: '#718096',
+    accent: '#3182CE',
+    accentLight: '#EBF8FF',
+    font: 'Roboto',
+    gradient: ['#FFFFFF', '#F7FAFC']
   },
-  academic: {
-    background: '#FAFAFA',
-    primary: '#2C3E50',
-    secondary: '#7F8C8D',
-    accent: '#8E44AD',
-    font: 'Times New Roman'
+  vibrant: {
+    background: '#FFFFFF',
+    backgroundSecondary: '#FFF8E1',
+    primary: '#1A202C',
+    secondary: '#4A5568',
+    accent: '#FF6B35',
+    accentLight: '#FFEDD5',
+    font: 'Montserrat',
+    gradient: ['#FFFFFF', '#FFF8E1']
   }
+};
+
+// Hardcoded placeholder images and icons for offline use
+const PLACEHOLDER_IMAGES = {
+  business: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNTAgNzVMMTI1IDEwMEgxNzVMMTUwIDc1WiIgZmlsbD0iIzM0ODJDRSIvPgo8cGF0aCBkPSJNMTI1IDEwMEgxNzVWMTI1SDEyNVYxMDBaIiBmaWxsPSIjNjM5MEZGIi8+CjwvYnZnPgo=',
+  technology: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjE1MCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiMxMEI5ODEiLz4KPHN2Zz4K',
+  education: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxyZWN0IHg9IjEwMCIgeT0iNzUiIHdpZHRoPSIxMDAiIGhlaWdodD0iNTAiIGZpbGw9IiM4RDQ0QUQiLz4KPHN2Zz4K'
+};
+
+const ICONS = {
+  lightbulb: '💡',
+  chart: '📊',
+  target: '🎯',
+  rocket: '🚀',
+  star: '⭐',
+  heart: '❤️',
+  check: '✅',
+  arrow: '➡️'
 };
 
 // Content processing with AI-like intelligence
@@ -119,14 +154,16 @@ class ContentProcessor {
     const slides: SlideContent[] = [];
     const sections = this.identifySections(content);
     
-    // Title slide
+    // Title slide with dynamic background
     slides.push({
       title: this.generateTitle(content),
       content: this.generateSubtitle(content),
-      layout: 'title'
+      layout: 'title',
+      backgroundType: 'gradient',
+      imageUrl: this.selectImageForContent(content)
     });
     
-    // Expand content across multiple slides
+    // Expand content across multiple slides with variety
     const contentSlides = targetCount - 2; // Reserve space for title and conclusion
     const pointsPerSlide = Math.max(2, Math.floor(sections.length / contentSlides));
     
@@ -136,19 +173,28 @@ class ContentProcessor {
       const slideContent = sections.slice(startIdx, endIdx);
       
       if (slideContent.length > 0) {
+        // Alternate layouts for visual interest
+        const layouts = ['content', 'split', 'feature', 'list'];
+        const layout = layouts[i % layouts.length];
+        
         slides.push({
           title: this.generateSlideTitle(slideContent[0], i + 1),
           content: slideContent.map(section => `• ${this.extractKeyPoint(section)}`).join('\n'),
-          layout: 'content'
+          layout: layout,
+          backgroundType: i % 2 === 0 ? 'gradient' : 'solid',
+          icon: this.selectIconForContent(slideContent[0]),
+          imageUrl: i % 3 === 0 ? this.selectImageForContent(slideContent[0]) : undefined
         });
       }
     }
     
-    // Conclusion slide
+    // Conclusion slide with special styling
     slides.push({
       title: 'Key Takeaways',
       content: this.generateSummary(content),
-      layout: 'conclusion'
+      layout: 'conclusion',
+      backgroundType: 'gradient',
+      icon: ICONS.star
     });
     
     return slides;
@@ -239,6 +285,28 @@ class ContentProcessor {
     );
     return keyPoints.join('\n');
   }
+  
+  private static selectImageForContent(content: string): string {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('business') || lowerContent.includes('corporate') || lowerContent.includes('company')) {
+      return PLACEHOLDER_IMAGES.business;
+    } else if (lowerContent.includes('technology') || lowerContent.includes('digital') || lowerContent.includes('innovation')) {
+      return PLACEHOLDER_IMAGES.technology;
+    } else if (lowerContent.includes('education') || lowerContent.includes('learning') || lowerContent.includes('academic')) {
+      return PLACEHOLDER_IMAGES.education;
+    }
+    return PLACEHOLDER_IMAGES.business; // Default
+  }
+  
+  private static selectIconForContent(content: string): string {
+    const lowerContent = content.toLowerCase();
+    if (lowerContent.includes('idea') || lowerContent.includes('innovation')) return ICONS.lightbulb;
+    if (lowerContent.includes('data') || lowerContent.includes('analytics') || lowerContent.includes('chart')) return ICONS.chart;
+    if (lowerContent.includes('goal') || lowerContent.includes('target') || lowerContent.includes('objective')) return ICONS.target;
+    if (lowerContent.includes('growth') || lowerContent.includes('launch') || lowerContent.includes('start')) return ICONS.rocket;
+    if (lowerContent.includes('success') || lowerContent.includes('achievement') || lowerContent.includes('best')) return ICONS.star;
+    return ICONS.arrow; // Default
+  }
 }
 
 // Rich PPTX generator with Gamma-like features
@@ -294,38 +362,61 @@ export class PresentationGenerator {
       case 'conclusion':
         this.createConclusionSlide(slide, slideContent, theme);
         break;
+      case 'split':
+        this.createSplitSlide(slide, slideContent, theme);
+        break;
+      case 'feature':
+        this.createFeatureSlide(slide, slideContent, theme);
+        break;
+      case 'list':
+        this.createListSlide(slide, slideContent, theme);
+        break;
       default:
         this.createContentSlide(slide, slideContent, theme);
     }
   }
   
   private static createTitleSlide(slide: any, content: SlideContent, theme: any): void {
-    // Background gradient
-    slide.background = {
-      fill: {
-        type: 'gradient',
-        colors: [
-          { color: theme.background, position: 0 },
-          { color: theme.accent + '20', position: 100 }
-        ],
-        direction: 'toBottom'
-      }
-    };
+    // Dynamic background
+    if (content.backgroundType === 'gradient') {
+      slide.background = {
+        fill: {
+          type: 'gradient',
+          colors: [
+            { color: theme.gradient[0], position: 0 },
+            { color: theme.gradient[1], position: 100 }
+          ],
+          direction: 'toBottomRight'
+        }
+      };
+    } else {
+      slide.background = { color: theme.background };
+    }
     
-    // Main title
+    // Background image if available
+    if (content.imageUrl) {
+      slide.addImage({
+        data: content.imageUrl,
+        x: 6, y: 2, w: 3, h: 2,
+        transparency: 80
+      });
+    }
+    
+    // Main title with enhanced styling
     slide.addText(content.title, {
-      x: 0.5, y: 2.5, w: 9, h: 1.5,
-      fontSize: 44,
+      x: 0.5, y: 2, w: 9, h: 1.8,
+      fontSize: 48,
       fontFace: theme.font,
       color: theme.primary,
       bold: true,
       align: 'center',
-      valign: 'middle'
+      valign: 'middle',
+      shadow: { type: 'outer', blur: 3, offset: 2, angle: 45, color: theme.accent + '30' }
     });
     
-    // Subtitle
+    // Subtitle with better styling
     slide.addText(content.content, {
-      x: 1, y: 4.2, w: 8, h: 1,
+      x: 1, y: 4, w: 8, h: 1.2,
       fontSize: 24,
       fontFace: theme.font,
       color: theme.secondary,
@@ -333,72 +424,245 @@ export class PresentationGenerator {
       valign: 'middle'
     });
     
-    // Decorative accent
+    // Enhanced decorative elements
     slide.addShape('rect', {
-      x: 4.5, y: 5.5, w: 1, h: 0.1,
-      fill: { color: theme.accent }
+      x: 3, y: 5.8, w: 4, h: 0.15,
+      fill: { 
+        type: 'gradient',
+        colors: [
+          { color: theme.accent, position: 0 },
+          { color: theme.accent + '40', position: 100 }
+        ]
+      },
+      line: { color: 'transparent' }
+    });
+    
+    // Brand logo placeholder
+    slide.addShape('rect', {
+      x: 0.5, y: 0.3, w: 2, h: 0.8,
+      fill: { color: theme.accentLight },
+      line: { color: theme.accent, width: 2 }
+    });
+    
+    slide.addText('LOGO', {
+      x: 0.5, y: 0.3, w: 2, h: 0.8,
+      fontSize: 16,
+      fontFace: theme.font,
+      color: theme.accent,
+      bold: true,
+      align: 'center',
+      valign: 'middle'
     });
   }
   
   private static createContentSlide(slide: any, content: SlideContent, theme: any): void {
-    // Background
-    slide.background = { color: theme.background };
+    // Dynamic background
+    if (content.backgroundType === 'gradient') {
+      slide.background = {
+        fill: {
+          type: 'gradient',
+          colors: [
+            { color: theme.background, position: 0 },
+            { color: theme.backgroundSecondary, position: 100 }
+          ],
+          direction: 'toBottomRight'
+        }
+      };
+    } else {
+      slide.background = { color: theme.background };
+    }
     
-    // Title section with accent
+    // Header with icon
     slide.addShape('rect', {
-      x: 0, y: 0, w: 10, h: 1.2,
-      fill: { 
-        type: 'gradient',
-        colors: [
-          { color: theme.accent + '10', position: 0 },
-          { color: theme.background, position: 100 }
-        ]
-      }
+      x: 0, y: 0, w: 10, h: 1.3,
+      fill: { color: theme.accentLight },
+      line: { color: 'transparent' }
     });
+    
+    // Icon
+    if (content.icon) {
+      slide.addText(content.icon, {
+        x: 0.5, y: 0.3, w: 0.8, h: 0.7,
+        fontSize: 32,
+        align: 'center',
+        valign: 'middle'
+      });
+    }
     
     // Title
     slide.addText(content.title, {
-      x: 0.5, y: 0.2, w: 9, h: 0.8,
-      fontSize: 28,
+      x: 1.5, y: 0.2, w: 8, h: 0.9,
+      fontSize: 32,
       fontFace: theme.font,
       color: theme.primary,
       bold: true,
       valign: 'middle'
     });
     
-    // Content with bullets
+    // Content with enhanced bullets
     const contentLines = content.content.split('\n').filter(line => line.trim());
     
     contentLines.forEach((line, index) => {
       const cleanLine = line.replace('•', '').trim();
       
-      // Bullet point
-      slide.addShape('circle', {
-        x: 0.8, y: 2 + (index * 0.8), w: 0.15, h: 0.15,
+      // Modern bullet point
+      slide.addShape('rect', {
+        x: 0.8, y: 2.1 + (index * 0.9), w: 0.25, h: 0.25,
         fill: { color: theme.accent }
       });
       
-      // Text
+      // Text with better spacing
       slide.addText(cleanLine, {
-        x: 1.2, y: 1.9 + (index * 0.8), w: 8, h: 0.6,
-        fontSize: 18,
+        x: 1.3, y: 2 + (index * 0.9), w: 7.5, h: 0.7,
+        fontSize: 20,
         fontFace: theme.font,
         color: theme.primary,
         valign: 'middle'
       });
     });
     
-    // Add visual element on the right
+    // Image if available
+    if (content.imageUrl) {
+      slide.addImage({
+        data: content.imageUrl,
+        x: 6.5, y: 2.5, w: 3, h: 2,
+        transparency: 20
+      });
+    } else {
+      // Visual accent element
+      slide.addShape('rect', {
+        x: 7, y: 2.5, w: 2.5, h: 3,
+        fill: { 
+          type: 'gradient',
+          colors: [
+            { color: theme.accent + '15', position: 0 },
+            { color: theme.accent + '25', position: 100 }
+          ]
+        },
+        line: { color: theme.accent, width: 3 }
+      });
+    }
+  }
+  
+  private static createSplitSlide(slide: any, content: SlideContent, theme: any): void {
+    slide.background = { color: theme.background };
+    
+    // Left section
     slide.addShape('rect', {
-      x: 7.5, y: 2, w: 2, h: 3,
-      fill: { 
+      x: 0, y: 0, w: 5, h: 7.5,
+      fill: { color: theme.accentLight }
+    });
+    
+    // Title
+    slide.addText(content.title, {
+      x: 0.5, y: 1, w: 4, h: 1,
+      fontSize: 28,
+      fontFace: theme.font,
+      color: theme.primary,
+      bold: true
+    });
+    
+    // Content
+    slide.addText(content.content, {
+      x: 0.5, y: 2.5, w: 4, h: 4,
+      fontSize: 18,
+      fontFace: theme.font,
+      color: theme.primary
+    });
+    
+    // Right section visual
+    if (content.imageUrl) {
+      slide.addImage({
+        data: content.imageUrl,
+        x: 5.5, y: 1, w: 4, h: 5
+      });
+    } else {
+      slide.addShape('circle', {
+        x: 6.5, y: 2, w: 2, h: 2,
+        fill: { color: theme.accent }
+      });
+    }
+  }
+  
+  private static createFeatureSlide(slide: any, content: SlideContent, theme: any): void {
+    slide.background = {
+      fill: {
         type: 'gradient',
         colors: [
-          { color: theme.accent + '20', position: 0 },
-          { color: theme.accent + '40', position: 100 }
+          { color: theme.background, position: 0 },
+          { color: theme.accentLight, position: 100 }
         ]
-      },
-      line: { color: theme.accent, width: 2 }
+      }
+    };
+    
+    // Center the content
+    slide.addText(content.title, {
+      x: 1, y: 2, w: 8, h: 1.5,
+      fontSize: 36,
+      fontFace: theme.font,
+      color: theme.primary,
+      bold: true,
+      align: 'center'
+    });
+    
+    // Feature content with emphasis
+    slide.addShape('rect', {
+      x: 2, y: 4, w: 6, h: 2,
+      fill: { color: theme.background },
+      line: { color: theme.accent, width: 3 }
+    });
+    
+    slide.addText(content.content, {
+      x: 2.5, y: 4.5, w: 5, h: 1,
+      fontSize: 18,
+      fontFace: theme.font,
+      color: theme.primary,
+      align: 'center',
+      valign: 'middle'
+    });
+  }
+  
+  private static createListSlide(slide: any, content: SlideContent, theme: any): void {
+    slide.background = { color: theme.background };
+    
+    // Header
+    slide.addText(content.title, {
+      x: 1, y: 0.5, w: 8, h: 1,
+      fontSize: 32,
+      fontFace: theme.font,
+      color: theme.primary,
+      bold: true,
+      align: 'center'
+    });
+    
+    // List items with numbers
+    const items = content.content.split('\n').filter(line => line.trim());
+    items.forEach((item, index) => {
+      const cleanItem = item.replace('•', '').trim();
+      
+      // Number circle
+      slide.addShape('circle', {
+        x: 1, y: 2.5 + (index * 1), w: 0.5, h: 0.5,
+        fill: { color: theme.accent }
+      });
+      
+      slide.addText((index + 1).toString(), {
+        x: 1, y: 2.5 + (index * 1), w: 0.5, h: 0.5,
+        fontSize: 18,
+        fontFace: theme.font,
+        color: 'white',
+        bold: true,
+        align: 'center',
+        valign: 'middle'
+      });
+      
+      slide.addText(cleanItem, {
+        x: 2, y: 2.5 + (index * 1), w: 7, h: 0.5,
+        fontSize: 18,
+        fontFace: theme.font,
+        color: theme.primary,
+        valign: 'middle'
+      });
     });
   }
   
