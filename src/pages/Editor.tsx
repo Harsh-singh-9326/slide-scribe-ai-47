@@ -265,13 +265,10 @@ const Editor = () => {
   // Enhanced PPTX generation using the new client-side generator
   const generateRichPPTX = async (presentation: any, slides: any[]) => {
     try {
-      // Convert slides to the format expected by PresentationGenerator
-      const slideContent = slides.map(slide => ({
-        title: slide.title,
-        content: slide.content,
-        notes: slide.notes,
-        layout: slide.layout || 'content'
-      }));
+      toast({
+        title: "Generating PPTX",
+        description: "Creating your professional presentation with images and rich design...",
+      });
 
       // Generate settings based on current configuration
       const settings = {
@@ -283,7 +280,7 @@ const Editor = () => {
       };
 
       // Use the rich presentation generator
-      await PresentationGenerator.generatePresentation(
+      const result = await PresentationGenerator.generatePresentation(
         slides.map(s => s.content).join('\n\n'),
         settings,
         currentTheme
@@ -291,10 +288,15 @@ const Editor = () => {
 
       toast({
         title: "PPTX Export Complete",
-        description: "Your rich presentation has been downloaded with professional design!",
+        description: result.downloadUrl || "Your rich presentation has been downloaded with professional design!",
       });
     } catch (error) {
       console.error('Rich PPTX generation error:', error);
+      toast({
+        title: "Rich PPTX Failed",
+        description: "Falling back to basic PPTX generation...",
+        variant: "destructive",
+      });
       // Fallback to basic PPTX generation
       await generatePPTX(presentation, slides);
     }

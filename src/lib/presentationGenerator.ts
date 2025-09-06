@@ -72,12 +72,119 @@ const THEMES = {
   }
 };
 
-// Hardcoded placeholder images and icons for offline use
-const PLACEHOLDER_IMAGES = {
-  business: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNTAgNzVMMTI1IDEwMEgxNzVMMTUwIDc1WiIgZmlsbD0iIzM0ODJDRSIvPgo8cGF0aCBkPSJNMTI1IDEwMEgxNzVWMTI1SDEyNVYxMDBaIiBmaWxsPSIjNjM5MEZGIi8+CjwvYnZnPgo=',
-  technology: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxjaXJjbGUgY3g9IjE1MCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiMxMEI5ODEiLz4KPHN2Zz4K',
-  education: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxyZWN0IHg9IjEwMCIgeT0iNzUiIHdpZHRoPSIxMDAiIGhlaWdodD0iNTAiIGZpbGw9IiM4RDQ0QUQiLz4KPHN2Zz4K'
-};
+// Enhanced image service with API integration and fallbacks
+class ImageService {
+  private static UNSPLASH_ACCESS_KEY = 'YOUR_UNSPLASH_KEY'; // Will be replaced with proper key
+  private static STABILITY_API_KEY = 'YOUR_STABILITY_KEY'; // Will be replaced with proper key
+  
+  // High-quality hardcoded images as fallbacks
+  private static PLACEHOLDER_IMAGES = {
+    business: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnMSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzMxODJDRTtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2MzkwRkY7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzEpIi8+PGNpcmNsZSBjeD0iNDAwIiBjeT0iMzAwIiByPSIxMDAiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjIiLz48cGF0aCBkPSJNMzUwIDI1MEw0NTAgMjUwTDQ1MCAzNTBMMzUwIDM1MFoiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjMiLz48L3N2Zz4=',
+    technology: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnMiIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzEwQjk4MTtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NEQ5RkY7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzIpIi8+PGNpcmNsZSBjeD0iNDAwIiBjeT0iMzAwIiByPSI4MCIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMiIvPjxwb2x5Z29uIHBvaW50cz0iNDAwLDIyMCA0NjAsMyAwIDM0MCwzMDAiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjMiLz48L3N2Zz4=',
+    education: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnMyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6Izg0NEFEQTtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBQjdCRkY7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzMpIi8+PHJlY3QgeD0iMjUwIiB5PSIyMDAiIHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC4yIi8+PHJlY3QgeD0iMzAwIiB5PSIyNTAiIHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC4zIi8+PC9zdmc+',
+    marketing: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnNCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6I0ZCN0M2RDtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNGRkE3Mjg7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzQpIi8+PGNpcmNsZSBjeD0iNDAwIiBjeT0iMzAwIiByPSIxMjAiIGZpbGw9IndoaXRlIiBvcGFjaXR5PSIwLjE1Ii8+PHBhdGggZD0iTTM1MCAyNDBMNDUwIDI0MEw0MjAgMzYwTDM4MCAzNjBaIiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC4yNSIvPjwvc3ZnPg==',
+    finance: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnNSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzFENEVEODtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM0QzUxQkY7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzUpIi8+PHBhdGggZD0iTTIwMCAzMDBMMzAwIDIwMEw0MDAgMjgwTDUwMCAxODBMNjAwIDI0MCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSI2IiBmaWxsPSJub25lIiBvcGFjaXR5PSIwLjMiLz48Y2lyY2xlIGN4PSI2MDAiIGN5PSIyNDAiIHI9IjE1IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC40Ii8+PC9zdmc+'
+  };
+
+  static async fetchImageFromUnsplash(query: string): Promise<string> {
+    try {
+      const response = await fetch(
+        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
+        {
+          headers: {
+            'Authorization': `Client-ID ${this.UNSPLASH_ACCESS_KEY}`
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          return data.results[0].urls.regular;
+        }
+      }
+    } catch (error) {
+      console.warn('Unsplash API failed:', error);
+    }
+    
+    return this.getFallbackImage(query);
+  }
+
+  static async fetchImageFromStability(prompt: string): Promise<string> {
+    try {
+      const response = await fetch('https://api.stability.ai/v1/generation/stable-diffusion-v1-6/text-to-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.STABILITY_API_KEY}`
+        },
+        body: JSON.stringify({
+          text_prompts: [{ text: prompt }],
+          cfg_scale: 7,
+          height: 512,
+          width: 768,
+          steps: 30,
+          samples: 1
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.artifacts && data.artifacts.length > 0) {
+          return `data:image/png;base64,${data.artifacts[0].base64}`;
+        }
+      }
+    } catch (error) {
+      console.warn('Stability AI failed:', error);
+    }
+    
+    return this.getFallbackImage(prompt);
+  }
+
+  static getFallbackImage(query: string): string {
+    const lowerQuery = query.toLowerCase();
+    
+    if (lowerQuery.includes('business') || lowerQuery.includes('corporate') || lowerQuery.includes('office')) {
+      return this.PLACEHOLDER_IMAGES.business;
+    } else if (lowerQuery.includes('technology') || lowerQuery.includes('tech') || lowerQuery.includes('digital') || lowerQuery.includes('ai')) {
+      return this.PLACEHOLDER_IMAGES.technology;
+    } else if (lowerQuery.includes('education') || lowerQuery.includes('learning') || lowerQuery.includes('school') || lowerQuery.includes('academic')) {
+      return this.PLACEHOLDER_IMAGES.education;
+    } else if (lowerQuery.includes('marketing') || lowerQuery.includes('social') || lowerQuery.includes('brand')) {
+      return this.PLACEHOLDER_IMAGES.marketing;
+    } else if (lowerQuery.includes('finance') || lowerQuery.includes('money') || lowerQuery.includes('investment') || lowerQuery.includes('chart')) {
+      return this.PLACEHOLDER_IMAGES.finance;
+    }
+    
+    return this.PLACEHOLDER_IMAGES.business; // Default fallback
+  }
+
+  static async getImageForContent(content: string): Promise<string> {
+    // Try Unsplash first, then Stability AI, then fallback
+    const keywords = this.extractKeywords(content);
+    const query = keywords.slice(0, 3).join(' ');
+    
+    // Try Unsplash first (free API with good images)
+    let imageUrl = await this.fetchImageFromUnsplash(query);
+    
+    // If Unsplash fails and we have Stability AI, try that
+    if (imageUrl.includes('data:image/svg+xml') && this.STABILITY_API_KEY !== 'YOUR_STABILITY_KEY') {
+      imageUrl = await this.fetchImageFromStability(`professional ${query} presentation slide background`);
+    }
+    
+    return imageUrl;
+  }
+
+  private static extractKeywords(content: string): string[] {
+    const commonWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should', 'could', 'can', 'may', 'might', 'must', 'shall'];
+    
+    return content.toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3 && !commonWords.includes(word))
+      .slice(0, 5);
+  }
+}
 
 const ICONS = {
   lightbulb: '💡',
@@ -87,12 +194,38 @@ const ICONS = {
   star: '⭐',
   heart: '❤️',
   check: '✅',
-  arrow: '➡️'
+  arrow: '➡️',
+  growth: '📈',
+  idea: '🧠',
+  team: '👥',
+  world: '🌍',
+  trophy: '🏆',
+  diamond: '💎'
 };
+
+// Enhanced logo generator
+class LogoService {
+  static generateCompanyLogo(theme: any): string {
+    return `data:image/svg+xml;base64,${btoa(`
+      <svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${theme.accent};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${theme.accent}80;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#logoGrad)"/>
+        <text x="45" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="${theme.primary}">SlideForge</text>
+        <circle cx="20" cy="20" r="8" fill="white" opacity="0.3"/>
+        <polygon points="20,14 26,26 14,26" fill="white" opacity="0.8"/>
+      </svg>
+    `)}`;
+  }
+}
 
 // Content processing with AI-like intelligence
 class ContentProcessor {
-  static processContent(content: string, settings: GenerationSettings): SlideContent[] {
+  static async processContent(content: string, settings: GenerationSettings): Promise<SlideContent[]> {
     const { slideCount, contentType, textAmount } = settings;
     
     // Split content into logical sections
@@ -108,7 +241,7 @@ class ContentProcessor {
     
     // Process content based on type
     if (contentType === 'generate') {
-      return this.generateExpandedSlides(content, slideCount);
+      return await this.generateExpandedSlides(content, slideCount);
     } else if (contentType === 'condense') {
       return this.condenseToSlides(content, slideCount);
     } else {
@@ -150,17 +283,19 @@ class ContentProcessor {
            (text.includes(':') || !!text.match(/^[A-Z][a-z\s]+$/));
   }
   
-  private static generateExpandedSlides(content: string, targetCount: number): SlideContent[] {
+  private static async generateExpandedSlides(content: string, targetCount: number): Promise<SlideContent[]> {
     const slides: SlideContent[] = [];
     const sections = this.identifySections(content);
     
     // Title slide with dynamic background
+    const titleImageUrl = await ImageService.getImageForContent(content);
+    
     slides.push({
       title: this.generateTitle(content),
       content: this.generateSubtitle(content),
       layout: 'title',
       backgroundType: 'gradient',
-      imageUrl: this.selectImageForContent(content)
+      imageUrl: titleImageUrl
     });
     
     // Expand content across multiple slides with variety
@@ -177,14 +312,16 @@ class ContentProcessor {
         const layouts = ['content', 'split', 'feature', 'list'];
         const layout = layouts[i % layouts.length];
         
-        slides.push({
-          title: this.generateSlideTitle(slideContent[0], i + 1),
-          content: slideContent.map(section => `• ${this.extractKeyPoint(section)}`).join('\n'),
-          layout: layout,
-          backgroundType: i % 2 === 0 ? 'gradient' : 'solid',
-          icon: this.selectIconForContent(slideContent[0]),
-          imageUrl: i % 3 === 0 ? this.selectImageForContent(slideContent[0]) : undefined
-        });
+      const slideImageUrl = await ImageService.getImageForContent(slideContent[0]);
+      
+      slides.push({
+        title: this.generateSlideTitle(slideContent[0], i + 1),
+        content: slideContent.map(section => `• ${this.extractKeyPoint(section)}`).join('\n'),
+        layout: layout,
+        backgroundType: i % 2 === 0 ? 'gradient' : 'solid',
+        icon: this.selectIconForContent(slideContent[0]),
+        imageUrl: slideImageUrl
+      });
       }
     }
     
@@ -286,16 +423,8 @@ class ContentProcessor {
     return keyPoints.join('\n');
   }
   
-  private static selectImageForContent(content: string): string {
-    const lowerContent = content.toLowerCase();
-    if (lowerContent.includes('business') || lowerContent.includes('corporate') || lowerContent.includes('company')) {
-      return PLACEHOLDER_IMAGES.business;
-    } else if (lowerContent.includes('technology') || lowerContent.includes('digital') || lowerContent.includes('innovation')) {
-      return PLACEHOLDER_IMAGES.technology;
-    } else if (lowerContent.includes('education') || lowerContent.includes('learning') || lowerContent.includes('academic')) {
-      return PLACEHOLDER_IMAGES.education;
-    }
-    return PLACEHOLDER_IMAGES.business; // Default
+  private static async selectImageForContent(content: string): Promise<string> {
+    return await ImageService.getImageForContent(content);
   }
   
   private static selectIconForContent(content: string): string {
@@ -318,7 +447,7 @@ export class PresentationGenerator {
   ): Promise<{ slides: SlideContent[], downloadUrl?: string }> {
     
     // Process content into slides
-    const slides = ContentProcessor.processContent(content, settings);
+    const slides = await ContentProcessor.processContent(content, settings);
     
     // Create PPTX with rich design
     const pptx = new pptxgen();
@@ -437,22 +566,31 @@ export class PresentationGenerator {
       line: { color: 'transparent' }
     });
     
-    // Brand logo placeholder
-    slide.addShape('rect', {
-      x: 0.5, y: 0.3, w: 2, h: 0.8,
-      fill: { color: theme.accentLight },
-      line: { color: theme.accent, width: 2 }
-    });
-    
-    slide.addText('LOGO', {
-      x: 0.5, y: 0.3, w: 2, h: 0.8,
-      fontSize: 16,
-      fontFace: theme.font,
-      color: theme.accent,
-      bold: true,
-      align: 'center',
-      valign: 'middle'
-    });
+    // Company logo
+    try {
+      const logoUrl = LogoService.generateCompanyLogo(theme);
+      slide.addImage({
+        data: logoUrl,
+        x: 0.5, y: 0.3, w: 2.4, h: 0.8
+      });
+    } catch (error) {
+      // Fallback logo
+      slide.addShape('rect', {
+        x: 0.5, y: 0.3, w: 2, h: 0.8,
+        fill: { color: theme.accentLight },
+        line: { color: theme.accent, width: 2 }
+      });
+      
+      slide.addText('LOGO', {
+        x: 0.5, y: 0.3, w: 2, h: 0.8,
+        fontSize: 16,
+        fontFace: theme.font,
+        color: theme.accent,
+        bold: true,
+        align: 'center',
+        valign: 'middle'
+      });
+    }
   }
   
   private static createContentSlide(slide: any, content: SlideContent, theme: any): void {
@@ -701,11 +839,12 @@ export class PresentationGenerator {
   
   private static async exportPPTX(pptx: any, filename: string): Promise<string> {
     try {
-      await pptx.writeFile({ fileName: `${filename}.pptx` });
-      return 'success'; // Return success indicator
+      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim() || 'presentation';
+      await pptx.writeFile({ fileName: `${sanitizedFilename}.pptx` });
+      return `${sanitizedFilename}.pptx downloaded successfully`;
     } catch (error) {
       console.error('Error exporting PPTX:', error);
-      throw new Error('Failed to export presentation');
+      throw new Error(`Failed to export presentation: ${error.message}`);
     }
   }
 }
