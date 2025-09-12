@@ -74,8 +74,8 @@ const THEMES = {
 
 // Enhanced image service with API integration and fallbacks
 class ImageService {
-  private static UNSPLASH_ACCESS_KEY = 'YOUR_UNSPLASH_KEY'; // Will be replaced with proper key
-  private static STABILITY_API_KEY = 'YOUR_STABILITY_KEY'; // Will be replaced with proper key
+  private static UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || ''; 
+  private static STABILITY_API_KEY = process.env.STABILITY_API_KEY || '';
   
   // High-quality hardcoded images as fallbacks
   private static PLACEHOLDER_IMAGES = {
@@ -87,6 +87,11 @@ class ImageService {
   };
 
   static async fetchImageFromUnsplash(query: string): Promise<string> {
+    // Always return fallback to avoid API issues
+    if (!this.UNSPLASH_ACCESS_KEY) {
+      return this.getFallbackImage(query);
+    }
+    
     try {
       const response = await fetch(
         `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=landscape`,
@@ -104,7 +109,7 @@ class ImageService {
         }
       }
     } catch (error) {
-      console.warn('Unsplash API failed:', error);
+      console.warn('Unsplash API failed, using fallback:', error);
     }
     
     return this.getFallbackImage(query);
@@ -532,7 +537,7 @@ export class PresentationGenerator {
     }
     
     // Main title with enhanced styling
-    slide.addText(content.title, {
+    slide.addText(content.title || '', {
       x: 0.5, y: 2, w: 9, h: 1.8,
       fontSize: 48,
       fontFace: theme.font,
@@ -540,11 +545,11 @@ export class PresentationGenerator {
       bold: true,
       align: 'center',
       valign: 'middle',
-      shadow: { type: 'outer', blur: 3, offset: 2, angle: 45, color: theme.accent + '30' }
+      shadow: { type: 'outer', blur: 3, offset: 2, angle: 45, color: theme.accent.replace('#', '') + '30' }
     });
     
     // Subtitle with better styling
-    slide.addText(content.content, {
+    slide.addText(content.content || '', {
       x: 1, y: 4, w: 8, h: 1.2,
       fontSize: 24,
       fontFace: theme.font,
@@ -628,7 +633,7 @@ export class PresentationGenerator {
     }
     
     // Title
-    slide.addText(content.title, {
+    slide.addText((content.title || '').toString(), {
       x: 1.5, y: 0.2, w: 8, h: 0.9,
       fontSize: 32,
       fontFace: theme.font,
@@ -638,10 +643,10 @@ export class PresentationGenerator {
     });
     
     // Content with enhanced bullets
-    const contentLines = content.content.split('\n').filter(line => line.trim());
+    const contentLines = (content.content || '').toString().split('\n').filter(line => line.trim());
     
     contentLines.forEach((line, index) => {
-      const cleanLine = line.replace('•', '').trim();
+      const cleanLine = (line || '').replace('•', '').trim();
       
       // Modern bullet point
       slide.addShape('rect', {
@@ -692,7 +697,7 @@ export class PresentationGenerator {
     });
     
     // Title
-    slide.addText(content.title, {
+    slide.addText((content.title || '').toString(), {
       x: 0.5, y: 1, w: 4, h: 1,
       fontSize: 28,
       fontFace: theme.font,
@@ -701,7 +706,7 @@ export class PresentationGenerator {
     });
     
     // Content
-    slide.addText(content.content, {
+    slide.addText((content.content || '').toString(), {
       x: 0.5, y: 2.5, w: 4, h: 4,
       fontSize: 18,
       fontFace: theme.font,
@@ -734,7 +739,7 @@ export class PresentationGenerator {
     };
     
     // Center the content
-    slide.addText(content.title, {
+    slide.addText((content.title || '').toString(), {
       x: 1, y: 2, w: 8, h: 1.5,
       fontSize: 36,
       fontFace: theme.font,
@@ -750,7 +755,7 @@ export class PresentationGenerator {
       line: { color: theme.accent, width: 3 }
     });
     
-    slide.addText(content.content, {
+    slide.addText((content.content || '').toString(), {
       x: 2.5, y: 4.5, w: 5, h: 1,
       fontSize: 18,
       fontFace: theme.font,
@@ -764,7 +769,7 @@ export class PresentationGenerator {
     slide.background = { color: theme.background };
     
     // Header
-    slide.addText(content.title, {
+    slide.addText((content.title || '').toString(), {
       x: 1, y: 0.5, w: 8, h: 1,
       fontSize: 32,
       fontFace: theme.font,
@@ -774,9 +779,9 @@ export class PresentationGenerator {
     });
     
     // List items with numbers
-    const items = content.content.split('\n').filter(line => line.trim());
+    const items = (content.content || '').toString().split('\n').filter(line => line.trim());
     items.forEach((item, index) => {
-      const cleanItem = item.replace('•', '').trim();
+      const cleanItem = (item || '').replace('•', '').trim();
       
       // Number circle
       slide.addShape('circle', {
@@ -817,7 +822,7 @@ export class PresentationGenerator {
     };
     
     // Title
-    slide.addText(content.title, {
+    slide.addText((content.title || '').toString(), {
       x: 0.5, y: 1, w: 9, h: 1,
       fontSize: 32,
       fontFace: theme.font,
@@ -827,7 +832,7 @@ export class PresentationGenerator {
     });
     
     // Content
-    slide.addText(content.content, {
+    slide.addText((content.content || '').toString(), {
       x: 1, y: 2.5, w: 8, h: 3,
       fontSize: 20,
       fontFace: theme.font,
