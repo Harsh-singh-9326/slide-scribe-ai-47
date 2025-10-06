@@ -133,7 +133,7 @@ const Dashboard = () => {
       const pptxSlide = pres.addSlide();
       
       // Add title
-      pptxSlide.addText(slide.title, {
+      pptxSlide.addText(String(slide.title || 'Slide'), {
         x: 0.5,
         y: 1,
         w: 9,
@@ -145,7 +145,7 @@ const Dashboard = () => {
       });
 
       // Add content
-      pptxSlide.addText(slide.content || '', {
+      pptxSlide.addText(String(slide.content || ''), {
         x: 0.5,
         y: 2.5,
         w: 9,
@@ -157,7 +157,7 @@ const Dashboard = () => {
       });
 
       // Add slide number
-      pptxSlide.addText(`${index + 1}`, {
+      pptxSlide.addText(String(index + 1), {
         x: 9,
         y: 6.8,
         w: 1,
@@ -181,12 +181,12 @@ const Dashboard = () => {
       // Add title
       pdf.setFontSize(24);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(slide.title, 105, 40, { align: 'center' });
+      pdf.text(String(slide.title || 'Slide'), 105, 40, { align: 'center' });
 
       // Add content
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'normal');
-      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
+      const splitContent = pdf.splitTextToSize(String(slide.content || ''), 170);
       pdf.text(splitContent, 20, 80);
 
       // Add slide number

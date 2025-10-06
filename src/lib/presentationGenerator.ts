@@ -476,15 +476,17 @@ export class PresentationGenerator {
     pptx.title = slides[0]?.title || 'AI Generated Presentation';
     
     // Configure slide master
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
     pptx.defineSlideMaster({
       title: 'SLIDE_MASTER',
-      background: { color: themeConfig.background },
+      background: { color: cleanColor(themeConfig.background) },
       objects: [
         // Logo placeholder
         {
           rect: {
             x: 0.2, y: 0.2, w: 1.5, h: 0.5,
-            fill: { color: themeConfig.accent }
+            fill: { color: cleanColor(themeConfig.accent) }
           }
         }
       ]
@@ -523,20 +525,23 @@ export class PresentationGenerator {
   }
   
   private static createTitleSlide(slide: any, content: SlideContent, theme: any): void {
+    // Helper to clean color codes
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
     // Dynamic background
     if (content.backgroundType === 'gradient') {
       slide.background = {
         fill: {
           type: 'gradient',
           colors: [
-            { color: theme.gradient[0], position: 0 },
-            { color: theme.gradient[1], position: 100 }
+            { color: cleanColor(theme.gradient[0]), position: 0 },
+            { color: cleanColor(theme.gradient[1]), position: 100 }
           ],
           direction: 'toBottomRight'
         }
       };
     } else {
-      slide.background = { color: theme.background };
+      slide.background = { color: cleanColor(theme.background) };
     }
     
     // Background image if available
@@ -550,13 +555,12 @@ export class PresentationGenerator {
     
     // Main title with enhanced styling
     const safeTitle = String(content.title || 'Presentation');
-    const shadowColor = String(theme.accent || '007AFF').replace('#', '');
     
     slide.addText(safeTitle, {
       x: 0.5, y: 2, w: 9, h: 1.8,
       fontSize: 48,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true,
       align: 'center',
       valign: 'middle'
@@ -568,21 +572,16 @@ export class PresentationGenerator {
       x: 1, y: 4, w: 8, h: 1.2,
       fontSize: 24,
       fontFace: theme.font,
-      color: theme.secondary,
+      color: cleanColor(theme.secondary),
       align: 'center',
       valign: 'middle'
     });
     
     // Enhanced decorative elements
+    const accentColor = cleanColor(theme.accent);
     slide.addShape('rect', {
       x: 3, y: 5.8, w: 4, h: 0.15,
-      fill: { 
-        type: 'gradient',
-        colors: [
-          { color: theme.accent, position: 0 },
-          { color: theme.accent + '40', position: 100 }
-        ]
-      },
+      fill: { color: accentColor },
       line: { color: 'transparent' }
     });
     
@@ -595,17 +594,18 @@ export class PresentationGenerator {
       });
     } catch (error) {
       // Fallback logo
+      const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
       slide.addShape('rect', {
         x: 0.5, y: 0.3, w: 2, h: 0.8,
-        fill: { color: theme.accentLight },
-        line: { color: theme.accent, width: 2 }
+        fill: { color: cleanColor(theme.accentLight) },
+        line: { color: cleanColor(theme.accent), width: 2 }
       });
       
-      slide.addText('LOGO', {
+      slide.addText(String('LOGO'), {
         x: 0.5, y: 0.3, w: 2, h: 0.8,
         fontSize: 16,
         fontFace: theme.font,
-        color: theme.accent,
+        color: cleanColor(theme.accent),
         bold: true,
         align: 'center',
         valign: 'middle'
@@ -614,32 +614,34 @@ export class PresentationGenerator {
   }
   
   private static createContentSlide(slide: any, content: SlideContent, theme: any): void {
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
     // Dynamic background
     if (content.backgroundType === 'gradient') {
       slide.background = {
         fill: {
           type: 'gradient',
           colors: [
-            { color: theme.background, position: 0 },
-            { color: theme.backgroundSecondary, position: 100 }
+            { color: cleanColor(theme.background), position: 0 },
+            { color: cleanColor(theme.backgroundSecondary), position: 100 }
           ],
           direction: 'toBottomRight'
         }
       };
     } else {
-      slide.background = { color: theme.background };
+      slide.background = { color: cleanColor(theme.background) };
     }
     
     // Header with icon
     slide.addShape('rect', {
       x: 0, y: 0, w: 10, h: 1.3,
-      fill: { color: theme.accentLight },
+      fill: { color: cleanColor(theme.accentLight) },
       line: { color: 'transparent' }
     });
     
     // Icon
     if (content.icon) {
-      slide.addText(content.icon, {
+      slide.addText(String(content.icon), {
         x: 0.5, y: 0.3, w: 0.8, h: 0.7,
         fontSize: 32,
         align: 'center',
@@ -653,7 +655,7 @@ export class PresentationGenerator {
       x: 1.5, y: 0.2, w: 8, h: 0.9,
       fontSize: 32,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true,
       valign: 'middle'
     });
@@ -668,7 +670,7 @@ export class PresentationGenerator {
       // Modern bullet point
       slide.addShape('rect', {
         x: 0.8, y: 2.1 + (index * 0.9), w: 0.25, h: 0.25,
-        fill: { color: theme.accent }
+        fill: { color: cleanColor(theme.accent) }
       });
       
       // Text with better spacing
@@ -676,7 +678,7 @@ export class PresentationGenerator {
         x: 1.3, y: 2 + (index * 0.9), w: 7.5, h: 0.7,
         fontSize: 20,
         fontFace: theme.font,
-        color: theme.primary,
+        color: cleanColor(theme.primary),
         valign: 'middle'
       });
     });
@@ -689,28 +691,24 @@ export class PresentationGenerator {
         transparency: 20
       });
     } else {
-      // Visual accent element
+      // Visual accent element with simpler fill
       slide.addShape('rect', {
         x: 7, y: 2.5, w: 2.5, h: 3,
-        fill: { 
-          type: 'gradient',
-          colors: [
-            { color: theme.accent + '15', position: 0 },
-            { color: theme.accent + '25', position: 100 }
-          ]
-        },
-        line: { color: theme.accent, width: 3 }
+        fill: { color: cleanColor(theme.accentLight) },
+        line: { color: cleanColor(theme.accent), width: 3 }
       });
     }
   }
   
   private static createSplitSlide(slide: any, content: SlideContent, theme: any): void {
-    slide.background = { color: theme.background };
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
+    slide.background = { color: cleanColor(theme.background) };
     
     // Left section
     slide.addShape('rect', {
       x: 0, y: 0, w: 5, h: 7.5,
-      fill: { color: theme.accentLight }
+      fill: { color: cleanColor(theme.accentLight) }
     });
     
     // Title
@@ -719,7 +717,7 @@ export class PresentationGenerator {
       x: 0.5, y: 1, w: 4, h: 1,
       fontSize: 28,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true
     });
     
@@ -729,7 +727,7 @@ export class PresentationGenerator {
       x: 0.5, y: 2.5, w: 4, h: 4,
       fontSize: 18,
       fontFace: theme.font,
-      color: theme.primary
+      color: cleanColor(theme.primary)
     });
     
     // Right section visual
@@ -741,18 +739,20 @@ export class PresentationGenerator {
     } else {
       slide.addShape('circle', {
         x: 6.5, y: 2, w: 2, h: 2,
-        fill: { color: theme.accent }
+        fill: { color: cleanColor(theme.accent) }
       });
     }
   }
   
   private static createFeatureSlide(slide: any, content: SlideContent, theme: any): void {
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
     slide.background = {
       fill: {
         type: 'gradient',
         colors: [
-          { color: theme.background, position: 0 },
-          { color: theme.accentLight, position: 100 }
+          { color: cleanColor(theme.background), position: 0 },
+          { color: cleanColor(theme.accentLight), position: 100 }
         ]
       }
     };
@@ -763,7 +763,7 @@ export class PresentationGenerator {
       x: 1, y: 2, w: 8, h: 1.5,
       fontSize: 36,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
     });
@@ -771,8 +771,8 @@ export class PresentationGenerator {
     // Feature content with emphasis
     slide.addShape('rect', {
       x: 2, y: 4, w: 6, h: 2,
-      fill: { color: theme.background },
-      line: { color: theme.accent, width: 3 }
+      fill: { color: cleanColor(theme.background) },
+      line: { color: cleanColor(theme.accent), width: 3 }
     });
     
     const featureContent = String(content.content || '');
@@ -780,14 +780,16 @@ export class PresentationGenerator {
       x: 2.5, y: 4.5, w: 5, h: 1,
       fontSize: 18,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       align: 'center',
       valign: 'middle'
     });
   }
   
   private static createListSlide(slide: any, content: SlideContent, theme: any): void {
-    slide.background = { color: theme.background };
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
+    slide.background = { color: cleanColor(theme.background) };
     
     // Header
     const listTitle = String(content.title || 'List');
@@ -795,7 +797,7 @@ export class PresentationGenerator {
       x: 1, y: 0.5, w: 8, h: 1,
       fontSize: 32,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
     });
@@ -809,14 +811,14 @@ export class PresentationGenerator {
       // Number circle
       slide.addShape('circle', {
         x: 1, y: 2.5 + (index * 1), w: 0.5, h: 0.5,
-        fill: { color: theme.accent }
+        fill: { color: cleanColor(theme.accent) }
       });
       
-      slide.addText((index + 1).toString(), {
+      slide.addText(String(index + 1), {
         x: 1, y: 2.5 + (index * 1), w: 0.5, h: 0.5,
         fontSize: 18,
         fontFace: theme.font,
-        color: 'white',
+        color: 'FFFFFF',
         bold: true,
         align: 'center',
         valign: 'middle'
@@ -826,20 +828,22 @@ export class PresentationGenerator {
         x: 2, y: 2.5 + (index * 1), w: 7, h: 0.5,
         fontSize: 18,
         fontFace: theme.font,
-        color: theme.primary,
+        color: cleanColor(theme.primary),
         valign: 'middle'
       });
     });
   }
   
   private static createConclusionSlide(slide: any, content: SlideContent, theme: any): void {
+    const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    
     // Similar to content slide but with special styling
     slide.background = {
       fill: {
         type: 'gradient',
         colors: [
-          { color: theme.background, position: 0 },
-          { color: theme.accent + '15', position: 100 }
+          { color: cleanColor(theme.background), position: 0 },
+          { color: cleanColor(theme.accentLight), position: 100 }
         ]
       }
     };
@@ -850,7 +854,7 @@ export class PresentationGenerator {
       x: 0.5, y: 1, w: 9, h: 1,
       fontSize: 32,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
     });
@@ -861,7 +865,7 @@ export class PresentationGenerator {
       x: 1, y: 2.5, w: 8, h: 3,
       fontSize: 20,
       fontFace: theme.font,
-      color: theme.primary,
+      color: cleanColor(theme.primary),
       align: 'center',
       valign: 'middle'
     });
