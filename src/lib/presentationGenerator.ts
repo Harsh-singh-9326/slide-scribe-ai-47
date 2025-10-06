@@ -86,6 +86,28 @@ class ImageService {
     finance: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnNSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzFENEVEODtzdG9wLW9wYWNpdHk6MSIgLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM0QzUxQkY7c3RvcC1vcGFjaXR5OjEiIC8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI2MDAiIGZpbGw9InVybCgjZzUpIi8+PHBhdGggZD0iTTIwMCAzMDBMMzAwIDIwMEw0MDAgMjgwTDUwMCAxODBMNjAwIDI0MCIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSI2IiBmaWxsPSJub25lIiBvcGFjaXR5PSIwLjMiLz48Y2lyY2xlIGN4PSI2MDAiIGN5PSIyNDAiIHI9IjE1IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC40Ii8+PC9zdmc+'
   };
 
+  // Convert URL to base64 with proper header
+  private static async urlToBase64(url: string): Promise<string> {
+    try {
+      // If already base64, return as is
+      if (url.startsWith('data:image')) {
+        return url;
+      }
+
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.warn('Failed to convert URL to base64:', error);
+      return this.getFallbackImage('');
+    }
+  }
+
   static async fetchImageFromUnsplash(query: string): Promise<string> {
     // Always return fallback to avoid API issues
     if (!this.UNSPLASH_ACCESS_KEY) {
@@ -105,7 +127,8 @@ class ImageService {
       if (response.ok) {
         const data = await response.json();
         if (data.results && data.results.length > 0) {
-          return data.results[0].urls.regular;
+          const imageUrl = data.results[0].urls.small; // Use smaller size for faster loading
+          return await this.urlToBase64(imageUrl);
         }
       }
     } catch (error) {
@@ -165,19 +188,8 @@ class ImageService {
   }
 
   static async getImageForContent(content: string): Promise<string> {
-    // Try Unsplash first, then Stability AI, then fallback
-    const keywords = this.extractKeywords(content);
-    const query = keywords.slice(0, 3).join(' ');
-    
-    // Try Unsplash first (free API with good images)
-    let imageUrl = await this.fetchImageFromUnsplash(query);
-    
-    // If Unsplash fails and we have Stability AI, try that
-    if (imageUrl.includes('data:image/svg+xml') && this.STABILITY_API_KEY !== 'YOUR_STABILITY_KEY') {
-      imageUrl = await this.fetchImageFromStability(`professional ${query} presentation slide background`);
-    }
-    
-    return imageUrl;
+    // Always use fallback images for reliability
+    return this.getFallbackImage(content);
   }
 
   private static extractKeywords(content: string): string[] {
@@ -537,19 +549,22 @@ export class PresentationGenerator {
     }
     
     // Main title with enhanced styling
-    slide.addText(content.title || '', {
+    const safeTitle = String(content.title || 'Presentation');
+    const shadowColor = String(theme.accent || '007AFF').replace('#', '');
+    
+    slide.addText(safeTitle, {
       x: 0.5, y: 2, w: 9, h: 1.8,
       fontSize: 48,
       fontFace: theme.font,
       color: theme.primary,
       bold: true,
       align: 'center',
-      valign: 'middle',
-      shadow: { type: 'outer', blur: 3, offset: 2, angle: 45, color: theme.accent.replace('#', '') + '30' }
+      valign: 'middle'
     });
     
     // Subtitle with better styling
-    slide.addText(content.content || '', {
+    const safeSubtitle = String(content.content || '');
+    slide.addText(safeSubtitle, {
       x: 1, y: 4, w: 8, h: 1.2,
       fontSize: 24,
       fontFace: theme.font,
@@ -633,7 +648,8 @@ export class PresentationGenerator {
     }
     
     // Title
-    slide.addText((content.title || '').toString(), {
+    const slideTitle = String(content.title || 'Slide');
+    slide.addText(slideTitle, {
       x: 1.5, y: 0.2, w: 8, h: 0.9,
       fontSize: 32,
       fontFace: theme.font,
@@ -643,10 +659,11 @@ export class PresentationGenerator {
     });
     
     // Content with enhanced bullets
-    const contentLines = (content.content || '').toString().split('\n').filter(line => line.trim());
+    const safeContent = String(content.content || '');
+    const contentLines = safeContent.split('\n').filter(line => line.trim());
     
     contentLines.forEach((line, index) => {
-      const cleanLine = (line || '').replace('•', '').trim();
+      const cleanLine = String(line || '').replace('•', '').trim();
       
       // Modern bullet point
       slide.addShape('rect', {
@@ -697,7 +714,8 @@ export class PresentationGenerator {
     });
     
     // Title
-    slide.addText((content.title || '').toString(), {
+    const splitTitle = String(content.title || 'Slide');
+    slide.addText(splitTitle, {
       x: 0.5, y: 1, w: 4, h: 1,
       fontSize: 28,
       fontFace: theme.font,
@@ -706,7 +724,8 @@ export class PresentationGenerator {
     });
     
     // Content
-    slide.addText((content.content || '').toString(), {
+    const splitContent = String(content.content || '');
+    slide.addText(splitContent, {
       x: 0.5, y: 2.5, w: 4, h: 4,
       fontSize: 18,
       fontFace: theme.font,
@@ -739,7 +758,8 @@ export class PresentationGenerator {
     };
     
     // Center the content
-    slide.addText((content.title || '').toString(), {
+    const featureTitle = String(content.title || 'Feature');
+    slide.addText(featureTitle, {
       x: 1, y: 2, w: 8, h: 1.5,
       fontSize: 36,
       fontFace: theme.font,
@@ -755,7 +775,8 @@ export class PresentationGenerator {
       line: { color: theme.accent, width: 3 }
     });
     
-    slide.addText((content.content || '').toString(), {
+    const featureContent = String(content.content || '');
+    slide.addText(featureContent, {
       x: 2.5, y: 4.5, w: 5, h: 1,
       fontSize: 18,
       fontFace: theme.font,
@@ -769,7 +790,8 @@ export class PresentationGenerator {
     slide.background = { color: theme.background };
     
     // Header
-    slide.addText((content.title || '').toString(), {
+    const listTitle = String(content.title || 'List');
+    slide.addText(listTitle, {
       x: 1, y: 0.5, w: 8, h: 1,
       fontSize: 32,
       fontFace: theme.font,
@@ -779,9 +801,10 @@ export class PresentationGenerator {
     });
     
     // List items with numbers
-    const items = (content.content || '').toString().split('\n').filter(line => line.trim());
+    const listContent = String(content.content || '');
+    const items = listContent.split('\n').filter(line => line.trim());
     items.forEach((item, index) => {
-      const cleanItem = (item || '').replace('•', '').trim();
+      const cleanItem = String(item || '').replace('•', '').trim();
       
       // Number circle
       slide.addShape('circle', {
@@ -822,7 +845,8 @@ export class PresentationGenerator {
     };
     
     // Title
-    slide.addText((content.title || '').toString(), {
+    const conclusionTitle = String(content.title || 'Conclusion');
+    slide.addText(conclusionTitle, {
       x: 0.5, y: 1, w: 9, h: 1,
       fontSize: 32,
       fontFace: theme.font,
@@ -832,7 +856,8 @@ export class PresentationGenerator {
     });
     
     // Content
-    slide.addText((content.content || '').toString(), {
+    const conclusionContent = String(content.content || '');
+    slide.addText(conclusionContent, {
       x: 1, y: 2.5, w: 8, h: 3,
       fontSize: 20,
       fontFace: theme.font,
@@ -844,12 +869,13 @@ export class PresentationGenerator {
   
   private static async exportPPTX(pptx: any, filename: string): Promise<string> {
     try {
-      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim() || 'presentation';
+      const sanitizedFilename = String(filename || 'presentation').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim() || 'presentation';
       await pptx.writeFile({ fileName: `${sanitizedFilename}.pptx` });
       return `${sanitizedFilename}.pptx downloaded successfully`;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error exporting PPTX:', error);
-      throw new Error(`Failed to export presentation: ${error.message}`);
+      throw new Error(`Failed to export presentation: ${errorMessage}`);
     }
   }
 }
