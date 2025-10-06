@@ -317,7 +317,7 @@ const Editor = () => {
       }
       
       // Add title
-      pptxSlide.addText(String(slide.title || 'Slide'), {
+      pptxSlide.addText(slide.title, {
         x: 0.5,
         y: 1,
         w: 9,
@@ -329,7 +329,7 @@ const Editor = () => {
       });
 
       // Add content
-      pptxSlide.addText(String(slide.content || ''), {
+      pptxSlide.addText(slide.content || '', {
         x: 0.5,
         y: 2.5,
         w: 9,
@@ -341,7 +341,7 @@ const Editor = () => {
       });
 
       // Add slide number
-      pptxSlide.addText(String(index + 1) + ' / ' + String(slides.length), {
+      pptxSlide.addText(`${index + 1} / ${slides.length}`, {
         x: 9,
         y: 6.8,
         w: 1,
@@ -365,12 +365,12 @@ const Editor = () => {
       // Add title
       pdf.setFontSize(24);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(String(slide.title || 'Slide'), 105, 40, { align: 'center' });
+      pdf.text(slide.title, 105, 40, { align: 'center' });
 
       // Add content
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'normal');
-      const splitContent = pdf.splitTextToSize(String(slide.content || ''), 170);
+      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
       pdf.text(splitContent, 20, 80);
 
       // Add slide number
