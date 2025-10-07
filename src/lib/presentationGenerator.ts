@@ -74,8 +74,9 @@ const THEMES = {
 
 // Enhanced image service with API integration and fallbacks
 class ImageService {
-  private static UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || '9VPTzZOtlD9xor2IaksV09QHR4blueC4Gf4JarzMEP8'; 
-  private static STABILITY_API_KEY = process.env.STABILITY_API_KEY || 'sk-VN7IxtX3BaiIqezoKLKu2gILSg4sbBReAXuSozhc9eiR2ZLF';
+  // API keys removed - using fallback images for reliability
+  private static UNSPLASH_ACCESS_KEY = ''; 
+  private static STABILITY_API_KEY = '';
   
   // High-quality hardcoded images as fallbacks
   private static PLACEHOLDER_IMAGES = {
