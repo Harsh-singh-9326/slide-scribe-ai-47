@@ -525,8 +525,9 @@ export class PresentationGenerator {
   }
   
   private static createTitleSlide(slide: any, content: SlideContent, theme: any): void {
-    // Helper to clean color codes
+    // Helper to clean color codes and ensure string values
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     // Dynamic background
     if (content.backgroundType === 'gradient') {
@@ -547,19 +548,19 @@ export class PresentationGenerator {
     // Background image if available
     if (content.imageUrl) {
       slide.addImage({
-        data: content.imageUrl,
+        data: safeString(content.imageUrl),
         x: 6, y: 2, w: 3, h: 2,
         transparency: 80
       });
     }
     
     // Main title with enhanced styling
-    const safeTitle = String(content.title || 'Presentation');
+    const safeTitle = safeString(content.title || 'Presentation');
     
     slide.addText(safeTitle, {
       x: 0.5, y: 2, w: 9, h: 1.8,
       fontSize: 48,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true,
       align: 'center',
@@ -567,11 +568,11 @@ export class PresentationGenerator {
     });
     
     // Subtitle with better styling
-    const safeSubtitle = String(content.content || '');
+    const safeSubtitle = safeString(content.content);
     slide.addText(safeSubtitle, {
       x: 1, y: 4, w: 8, h: 1.2,
       fontSize: 24,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.secondary),
       align: 'center',
       valign: 'middle'
@@ -589,22 +590,21 @@ export class PresentationGenerator {
     try {
       const logoUrl = LogoService.generateCompanyLogo(theme);
       slide.addImage({
-        data: logoUrl,
+        data: safeString(logoUrl),
         x: 0.5, y: 0.3, w: 2.4, h: 0.8
       });
     } catch (error) {
       // Fallback logo
-      const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
       slide.addShape('rect', {
         x: 0.5, y: 0.3, w: 2, h: 0.8,
         fill: { color: cleanColor(theme.accentLight) },
         line: { color: cleanColor(theme.accent), width: 2 }
       });
       
-      slide.addText(String('LOGO'), {
+      slide.addText('LOGO', {
         x: 0.5, y: 0.3, w: 2, h: 0.8,
         fontSize: 16,
-        fontFace: theme.font,
+        fontFace: safeString(theme.font || 'Arial'),
         color: cleanColor(theme.accent),
         bold: true,
         align: 'center',
@@ -615,6 +615,7 @@ export class PresentationGenerator {
   
   private static createContentSlide(slide: any, content: SlideContent, theme: any): void {
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     // Dynamic background
     if (content.backgroundType === 'gradient') {
@@ -641,7 +642,7 @@ export class PresentationGenerator {
     
     // Icon
     if (content.icon) {
-      slide.addText(String(content.icon), {
+      slide.addText(safeString(content.icon), {
         x: 0.5, y: 0.3, w: 0.8, h: 0.7,
         fontSize: 32,
         align: 'center',
@@ -650,22 +651,22 @@ export class PresentationGenerator {
     }
     
     // Title
-    const slideTitle = String(content.title || 'Slide');
+    const slideTitle = safeString(content.title || 'Slide');
     slide.addText(slideTitle, {
       x: 1.5, y: 0.2, w: 8, h: 0.9,
       fontSize: 32,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true,
       valign: 'middle'
     });
     
     // Content with enhanced bullets
-    const safeContent = String(content.content || '');
+    const safeContent = safeString(content.content);
     const contentLines = safeContent.split('\n').filter(line => line.trim());
     
     contentLines.forEach((line, index) => {
-      const cleanLine = String(line || '').replace('•', '').trim();
+      const cleanLine = safeString(line).replace('•', '').trim();
       
       // Modern bullet point
       slide.addShape('rect', {
@@ -677,7 +678,7 @@ export class PresentationGenerator {
       slide.addText(cleanLine, {
         x: 1.3, y: 2 + (index * 0.9), w: 7.5, h: 0.7,
         fontSize: 20,
-        fontFace: theme.font,
+        fontFace: safeString(theme.font || 'Arial'),
         color: cleanColor(theme.primary),
         valign: 'middle'
       });
@@ -686,7 +687,7 @@ export class PresentationGenerator {
     // Image if available
     if (content.imageUrl) {
       slide.addImage({
-        data: content.imageUrl,
+        data: safeString(content.imageUrl),
         x: 6.5, y: 2.5, w: 3, h: 2,
         transparency: 20
       });
@@ -702,6 +703,7 @@ export class PresentationGenerator {
   
   private static createSplitSlide(slide: any, content: SlideContent, theme: any): void {
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     slide.background = { color: cleanColor(theme.background) };
     
@@ -712,28 +714,28 @@ export class PresentationGenerator {
     });
     
     // Title
-    const splitTitle = String(content.title || 'Slide');
+    const splitTitle = safeString(content.title || 'Slide');
     slide.addText(splitTitle, {
       x: 0.5, y: 1, w: 4, h: 1,
       fontSize: 28,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true
     });
     
     // Content
-    const splitContent = String(content.content || '');
+    const splitContent = safeString(content.content);
     slide.addText(splitContent, {
       x: 0.5, y: 2.5, w: 4, h: 4,
       fontSize: 18,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary)
     });
     
     // Right section visual
     if (content.imageUrl) {
       slide.addImage({
-        data: content.imageUrl,
+        data: safeString(content.imageUrl),
         x: 5.5, y: 1, w: 4, h: 5
       });
     } else {
@@ -746,6 +748,7 @@ export class PresentationGenerator {
   
   private static createFeatureSlide(slide: any, content: SlideContent, theme: any): void {
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     slide.background = {
       fill: {
@@ -758,11 +761,11 @@ export class PresentationGenerator {
     };
     
     // Center the content
-    const featureTitle = String(content.title || 'Feature');
+    const featureTitle = safeString(content.title || 'Feature');
     slide.addText(featureTitle, {
       x: 1, y: 2, w: 8, h: 1.5,
       fontSize: 36,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
@@ -775,11 +778,11 @@ export class PresentationGenerator {
       line: { color: cleanColor(theme.accent), width: 3 }
     });
     
-    const featureContent = String(content.content || '');
+    const featureContent = safeString(content.content);
     slide.addText(featureContent, {
       x: 2.5, y: 4.5, w: 5, h: 1,
       fontSize: 18,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       align: 'center',
       valign: 'middle'
@@ -788,25 +791,26 @@ export class PresentationGenerator {
   
   private static createListSlide(slide: any, content: SlideContent, theme: any): void {
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     slide.background = { color: cleanColor(theme.background) };
     
     // Header
-    const listTitle = String(content.title || 'List');
+    const listTitle = safeString(content.title || 'List');
     slide.addText(listTitle, {
       x: 1, y: 0.5, w: 8, h: 1,
       fontSize: 32,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
     });
     
     // List items with numbers
-    const listContent = String(content.content || '');
+    const listContent = safeString(content.content);
     const items = listContent.split('\n').filter(line => line.trim());
     items.forEach((item, index) => {
-      const cleanItem = String(item || '').replace('•', '').trim();
+      const cleanItem = safeString(item).replace('•', '').trim();
       
       // Number circle
       slide.addShape('circle', {
@@ -814,10 +818,10 @@ export class PresentationGenerator {
         fill: { color: cleanColor(theme.accent) }
       });
       
-      slide.addText(String(index + 1), {
+      slide.addText(safeString(index + 1), {
         x: 1, y: 2.5 + (index * 1), w: 0.5, h: 0.5,
         fontSize: 18,
-        fontFace: theme.font,
+        fontFace: safeString(theme.font || 'Arial'),
         color: 'FFFFFF',
         bold: true,
         align: 'center',
@@ -827,7 +831,7 @@ export class PresentationGenerator {
       slide.addText(cleanItem, {
         x: 2, y: 2.5 + (index * 1), w: 7, h: 0.5,
         fontSize: 18,
-        fontFace: theme.font,
+        fontFace: safeString(theme.font || 'Arial'),
         color: cleanColor(theme.primary),
         valign: 'middle'
       });
@@ -836,6 +840,7 @@ export class PresentationGenerator {
   
   private static createConclusionSlide(slide: any, content: SlideContent, theme: any): void {
     const cleanColor = (color: string) => String(color || 'FFFFFF').replace('#', '');
+    const safeString = (val: any) => String(val || '');
     
     // Similar to content slide but with special styling
     slide.background = {
@@ -849,22 +854,22 @@ export class PresentationGenerator {
     };
     
     // Title
-    const conclusionTitle = String(content.title || 'Conclusion');
+    const conclusionTitle = safeString(content.title || 'Conclusion');
     slide.addText(conclusionTitle, {
       x: 0.5, y: 1, w: 9, h: 1,
       fontSize: 32,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       bold: true,
       align: 'center'
     });
     
     // Content
-    const conclusionContent = String(content.content || '');
+    const conclusionContent = safeString(content.content);
     slide.addText(conclusionContent, {
       x: 1, y: 2.5, w: 8, h: 3,
       fontSize: 20,
-      fontFace: theme.font,
+      fontFace: safeString(theme.font || 'Arial'),
       color: cleanColor(theme.primary),
       align: 'center',
       valign: 'middle'
@@ -873,11 +878,12 @@ export class PresentationGenerator {
   
   private static async exportPPTX(pptx: any, filename: string): Promise<string> {
     try {
-      const sanitizedFilename = String(filename || 'presentation').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim() || 'presentation';
+      const safeString = (val: any) => String(val || '');
+      const sanitizedFilename = safeString(filename || 'presentation').replace(/[^a-zA-Z0-9\s\-_]/g, '').trim() || 'presentation';
       await pptx.writeFile({ fileName: `${sanitizedFilename}.pptx` });
       return `${sanitizedFilename}.pptx downloaded successfully`;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error('Error exporting PPTX:', error);
       throw new Error(`Failed to export presentation: ${errorMessage}`);
     }
