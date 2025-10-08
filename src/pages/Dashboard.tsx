@@ -327,87 +327,103 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">Loading presentations...</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {presentations.map((presentation) => (
-                  <div
+                  <Card
                     key={presentation.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                     onClick={() => navigate(`/editor/${presentation.id}`)}
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium">{presentation.title}</h3>
-                        <div className="flex items-center text-sm text-muted-foreground space-x-4">
-                          <span className="flex items-center">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {new Date(presentation.created_at).toLocaleDateString()}
+                    {/* Preview Section - Taller height */}
+                    <div className="h-64 bg-gradient-to-br from-muted/50 to-muted p-6 flex flex-col justify-between border-b">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">
+                            <FileText className="w-5 h-5 text-primary-foreground" />
+                          </div>
+                          <span className="text-xs text-muted-foreground capitalize px-3 py-1 bg-background/80 rounded-full">
+                            {presentation.theme}
                           </span>
-                          <span>{presentation.slide_count || 0} slides</span>
-                          <span className="capitalize">{presentation.theme}</span>
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="font-bold text-lg line-clamp-2">{presentation.title}</h3>
+                          <p className="text-sm text-muted-foreground line-clamp-4">
+                            {presentation.description || "AI-generated presentation content with beautiful layouts and themes."}
+                          </p>
                         </div>
                       </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(presentation.created_at).toLocaleDateString()}
+                        </span>
+                        <span className="font-medium">{presentation.slide_count || 0} slides</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={(e) => handleDownload(presentation.id, 'pptx', e)}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        PPTX
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => handleDownload(presentation.id, 'pdf', e)}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        PDF
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/editor/${presentation.id}`);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-destructive hover:text-destructive"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Presentation</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "{presentation.title}"? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction 
-                              onClick={() => handleDelete(presentation.id, presentation.title)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+
+                    {/* Actions Section */}
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => handleDownload(presentation.id, 'pptx', e)}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          PPTX
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex-1"
+                          onClick={(e) => handleDownload(presentation.id, 'pdf', e)}
+                        >
+                          <Download className="w-3 h-3 mr-1" />
+                          PDF
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/editor/${presentation.id}`);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Presentation</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{presentation.title}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDelete(presentation.id, presentation.title)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
