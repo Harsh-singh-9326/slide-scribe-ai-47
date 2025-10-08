@@ -37,6 +37,7 @@ interface Slide {
     };
   };
   layout?: string;
+  theme?: string; // Per-slide theme override
 }
 
 const Editor = () => {
@@ -283,80 +284,242 @@ const Editor = () => {
     }
   };
 
-  const generatePPTX = async (presentation: any, slides: any[]) => {
+  const generatePPTX = async (presentation: any, slidesData: any[]) => {
     const pptx = await import('pptxgenjs');
     const pres = new pptx.default();
-
-    const themeStyles = getThemeStyles();
     
-    slides.forEach((slide, index) => {
+    slidesData.forEach((slide, index) => {
       const pptxSlide = pres.addSlide();
       
-      // Add background based on theme
-      if (currentTheme !== 'minimal') {
-        pptxSlide.background = { color: themeStyles.accentColor };
+      // Get theme for this slide
+      const slideTheme = slide.theme || currentTheme;
+      const themeStyles = getThemeStylesForTheme(slideTheme);
+      const layout = slide.layout || 'title-content';
+      
+      // Extract background color from gradient or solid color
+      let bgColor = 'FFFFFF';
+      if (themeStyles.background.includes('gradient')) {
+        // Extract first color from gradient
+        const match = themeStyles.background.match(/#([0-9a-fA-F]{6})/);
+        if (match) bgColor = match[1];
+      } else if (themeStyles.background.startsWith('#')) {
+        bgColor = themeStyles.background.replace('#', '');
       }
       
-      // Add title
-      pptxSlide.addText(slide.title, {
-        x: 0.5,
-        y: 1,
-        w: 9,
-        h: 1,
-        fontSize: 24,
-        bold: true,
-        align: 'center',
-        color: currentTheme === 'minimal' ? '2c3e50' : 'ffffff'
-      });
-
-      // Add content
-      pptxSlide.addText(slide.content || '', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 4,
-        fontSize: 16,
-        align: 'left',
-        color: currentTheme === 'minimal' ? '7f8c8d' : 'f8fafc',
-        valign: 'top'
-      });
-
+      pptxSlide.background = { color: bgColor };
+      
+      const titleColor = themeStyles.titleColor.replace('#', '');
+      const contentColor = themeStyles.contentColor.replace('#', '');
+      const accentColor = themeStyles.accentColor.replace('#', '');
+      
+      // Render based on layout
+      if (layout === 'hero') {
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 2.5, w: 9, h: 2,
+          fontSize: 44, bold: true, align: 'center', color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        contentLines.forEach((line, i) => {
+          pptxSlide.addText(String(line.replace('• ', '') || ''), {
+            x: 1, y: 4.5 + (i * 0.4), w: 8, h: 0.4,
+            fontSize: 18, align: 'center', color: contentColor
+          });
+        });
+      } else if (layout === 'two-column') {
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 0.5, w: 4.5, h: 1,
+          fontSize: 32, bold: true, color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        contentLines.forEach((line, i) => {
+          pptxSlide.addText(String(line.replace('• ', '• ') || ''), {
+            x: 0.5, y: 1.8 + (i * 0.5), w: 4.5, h: 0.5,
+            fontSize: 16, color: contentColor
+          });
+        });
+        // Placeholder for image
+        pptxSlide.addShape(pres.ShapeType.rect, {
+          x: 5.5, y: 1.5, w: 4, h: 4,
+          fill: { color: accentColor, transparency: 20 }
+        });
+      } else if (layout === 'grid') {
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 0.5, w: 9, h: 0.8,
+          fontSize: 32, bold: true, align: 'center', color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        let gridItems = contentLines.map(l => l.replace('• ', ''));
+        while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
+        gridItems = gridItems.slice(0, 4);
+        
+        const positions = [
+          { x: 0.5, y: 2 }, { x: 5.2, y: 2 },
+          { x: 0.5, y: 4.5 }, { x: 5.2, y: 4.5 }
+        ];
+        gridItems.forEach((item, i) => {
+          pptxSlide.addShape(pres.ShapeType.rect, {
+            x: positions[i].x, y: positions[i].y, w: 4.2, h: 2,
+            fill: { color: accentColor, transparency: 80 },
+            line: { color: accentColor, width: 2 }
+          });
+          pptxSlide.addText(String(i + 1 || ''), {
+            x: positions[i].x + 1.7, y: positions[i].y + 0.3, w: 0.8, h: 0.8,
+            fontSize: 24, bold: true, align: 'center', color: 'FFFFFF',
+            shape: pres.ShapeType.ellipse,
+            fill: { color: accentColor }
+          });
+          pptxSlide.addText(String(item || ''), {
+            x: positions[i].x + 0.2, y: positions[i].y + 1.2, w: 3.8, h: 0.6,
+            fontSize: 14, align: 'center', color: contentColor
+          });
+        });
+      } else { // title-content
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 1.5, w: 9, h: 1,
+          fontSize: 36, bold: true, align: 'center', color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        contentLines.forEach((line, i) => {
+          pptxSlide.addText(String(line.replace('• ', '• ') || ''), {
+            x: 1.5, y: 3 + (i * 0.5), w: 7, h: 0.5,
+            fontSize: 18, align: 'center', color: contentColor
+          });
+        });
+      }
+      
       // Add slide number
-      pptxSlide.addText(`${index + 1} / ${slides.length}`, {
-        x: 9,
-        y: 6.8,
-        w: 1,
-        h: 0.3,
-        fontSize: 12,
-        align: 'right',
-        color: currentTheme === 'minimal' ? '999999' : 'ffffff'
+      pptxSlide.addText(String(`${index + 1} / ${slidesData.length}`), {
+        x: 9, y: 6.8, w: 0.8, h: 0.3,
+        fontSize: 10, align: 'right', color: titleColor
       });
     });
 
     await pres.writeFile({ fileName: `${presentation.title}.pptx` });
   };
 
-  const generatePDF = async (presentation: any, slides: any[]) => {
+  const generatePDF = async (presentation: any, slidesData: any[]) => {
     const jsPDF = (await import('jspdf')).default;
-    const pdf = new jsPDF();
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
 
-    slides.forEach((slide, index) => {
-      if (index > 0) pdf.addPage();
+    slidesData.forEach((slide, index) => {
+      if (index > 0) pdf.addPage('a4', 'landscape');
 
-      // Add title
-      pdf.setFontSize(24);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(slide.title, 105, 40, { align: 'center' });
-
-      // Add content
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'normal');
-      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
-      pdf.text(splitContent, 20, 80);
-
+      // Get theme for this slide
+      const slideTheme = slide.theme || currentTheme;
+      const themeStyles = getThemeStylesForTheme(slideTheme);
+      const layout = slide.layout || 'title-content';
+      
+      // Extract colors (remove # and convert to RGB)
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+      };
+      
+      // Set background color (approximate gradient with solid color)
+      let bgColor = hexToRgb('#ffffff');
+      if (themeStyles.background.includes('gradient')) {
+        const match = themeStyles.background.match(/#([0-9a-fA-F]{6})/);
+        if (match) bgColor = hexToRgb('#' + match[1]);
+      } else if (themeStyles.background.startsWith('#')) {
+        bgColor = hexToRgb(themeStyles.background);
+      }
+      
+      pdf.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+      pdf.rect(0, 0, 297, 210, 'F');
+      
+      const titleColor = hexToRgb(themeStyles.titleColor);
+      const contentColor = hexToRgb(themeStyles.contentColor);
+      const accentColor = hexToRgb(themeStyles.accentColor);
+      
+      const contentLines = (slide.content || '').split('\n').filter((l: string) => l.trim());
+      
+      if (layout === 'hero') {
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(36);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 148.5, 80, { align: 'center', maxWidth: 250 });
+        
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'normal');
+        let yPos = 120;
+        contentLines.forEach((line: string) => {
+          pdf.text(line.replace('• ', ''), 148.5, yPos, { align: 'center', maxWidth: 220 });
+          yPos += 15;
+        });
+      } else if (layout === 'two-column') {
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(28);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 20, 40, { maxWidth: 120 });
+        
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'normal');
+        let yPos = 65;
+        contentLines.forEach((line: string) => {
+          pdf.text('• ' + line.replace('• ', ''), 20, yPos, { maxWidth: 120 });
+          yPos += 12;
+        });
+        
+        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b, 0.2);
+        pdf.roundedRect(160, 40, 120, 120, 5, 5, 'F');
+      } else if (layout === 'grid') {
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(28);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 148.5, 30, { align: 'center' });
+        
+        let gridItems = contentLines.map((l: string) => l.replace('• ', ''));
+        while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
+        gridItems = gridItems.slice(0, 4);
+        
+        const positions = [
+          { x: 20, y: 60 }, { x: 160, y: 60 },
+          { x: 20, y: 130 }, { x: 160, y: 130 }
+        ];
+        
+        gridItems.forEach((item: string, i: number) => {
+          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b, 0.1);
+          pdf.roundedRect(positions[i].x, positions[i].y, 120, 50, 5, 5, 'F');
+          
+          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
+          pdf.circle(positions[i].x + 60, positions[i].y + 15, 8, 'F');
+          
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(16);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(String(i + 1), positions[i].x + 60, positions[i].y + 18, { align: 'center' });
+          
+          pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+          pdf.setFontSize(14);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(item, positions[i].x + 60, positions[i].y + 35, { align: 'center', maxWidth: 110 });
+        });
+      } else { // title-content
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(32);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 148.5, 60, { align: 'center', maxWidth: 250 });
+        
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'normal');
+        let yPos = 90;
+        contentLines.forEach((line: string) => {
+          pdf.text('• ' + line.replace('• ', ''), 148.5, yPos, { align: 'center', maxWidth: 220 });
+          yPos += 14;
+        });
+      }
+      
       // Add slide number
+      pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
       pdf.setFontSize(10);
-      pdf.text(`${index + 1} / ${slides.length}`, 190, 280, { align: 'right' });
+      pdf.text(`${index + 1} / ${slidesData.length}`, 280, 200, { align: 'right' });
     });
 
     pdf.save(`${presentation.title}.pdf`);
@@ -565,6 +728,9 @@ const Editor = () => {
       };
     }
 
+    // Use per-slide theme if set, otherwise use global theme
+    const themeToUse = currentSlide?.theme || currentTheme;
+
     // Fallback to preset themes
     const themes = {
       modern: {
@@ -611,7 +777,7 @@ const Editor = () => {
         accentColor: '#4ECDC4'
       }
     };
-    return themes[currentTheme as keyof typeof themes] || themes.modern;
+    return themes[themeToUse as keyof typeof themes] || themes.modern;
   };
 
   const getThemeStylesForTheme = (theme: string) => {
@@ -970,11 +1136,14 @@ const Editor = () => {
                 {renderSlidePreview()}
               </div>
 
-              {/* Theme Selector */}
+              {/* Global Theme Selector */}
               <Card className="mb-6">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium">Theme: {currentTheme}</h3>
+                    <div>
+                      <h3 className="font-medium">Global Theme</h3>
+                      <p className="text-xs text-muted-foreground">Apply to all slides</p>
+                    </div>
                     <Select value={currentTheme} onValueChange={setCurrentTheme}>
                       <SelectTrigger className="w-48">
                         <SelectValue placeholder="Select theme" />
@@ -1057,7 +1226,40 @@ const Editor = () => {
                     <SelectItem value="title-content">Title + Content</SelectItem>
                     <SelectItem value="hero">Hero Layout</SelectItem>
                     <SelectItem value="two-column">Two Column</SelectItem>
-                    <SelectItem value="grid">Grid Layout</SelectItem>
+                    <SelectItem value="grid">Grid Layout (4 items)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Per-Slide Theme Override */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  This Slide Theme
+                  <span className="text-xs ml-1">(optional override)</span>
+                </label>
+                <Select
+                  value={slides[selectedSlide]?.theme || 'default'}
+                  onValueChange={(value) => {
+                    const newSlides = [...slides];
+                    newSlides[selectedSlide] = {
+                      ...newSlides[selectedSlide],
+                      theme: value === 'default' ? undefined : value
+                    };
+                    setSlides(newSlides);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Use Global Theme</SelectItem>
+                    <SelectItem value="modern">Modern - Purple gradient</SelectItem>
+                    <SelectItem value="professional">Professional - Dark blue</SelectItem>
+                    <SelectItem value="creative">Creative - Pink gradient</SelectItem>
+                    <SelectItem value="minimal">Minimal - Clean white</SelectItem>
+                    <SelectItem value="vibrant">Vibrant - Dark with colors</SelectItem>
+                    <SelectItem value="corporate">Corporate - Light blue</SelectItem>
+                    <SelectItem value="dark">Dark - High contrast</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
