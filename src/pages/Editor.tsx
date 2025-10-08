@@ -46,6 +46,7 @@ const Editor = () => {
   const [selectedSlide, setSelectedSlide] = useState(0);
   const [currentTheme, setCurrentTheme] = useState('modern');
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [presentation, setPresentation] = useState<any>(null);
   const [slides, setSlides] = useState<Slide[]>([
     {
@@ -120,6 +121,7 @@ const Editor = () => {
 
       setPresentation(presentationData);
       setCurrentTheme(presentationData.theme || 'modern');
+      setLastSaved(presentationData.updated_at ? new Date(presentationData.updated_at) : null);
       
       // Use AI-generated content if available, otherwise load from slides table
       if (presentationData.content && Array.isArray(presentationData.content)) {
@@ -217,6 +219,8 @@ const Editor = () => {
         }
       }
 
+      setLastSaved(new Date());
+      
       toast({
         title: "Saved",
         description: "Your presentation has been saved successfully",
@@ -483,7 +487,13 @@ const Editor = () => {
       
       'grid': () => {
         const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
-        const gridItems = contentLines.map(line => line.replace('• ', ''));
+        let gridItems = contentLines.map(line => line.replace('• ', ''));
+        
+        // Ensure we have at least 4 items for the grid
+        while (gridItems.length < 4) {
+          gridItems.push(`Point ${gridItems.length + 1}`);
+        }
+        gridItems = gridItems.slice(0, 4); // Take exactly 4 items
         
         return (
           <div className="w-full h-full p-12">
@@ -494,7 +504,7 @@ const Editor = () => {
               {currentSlide.title}
             </h1>
             <div className="grid grid-cols-2 gap-8 h-2/3">
-              {gridItems.slice(0, 4).map((item, index) => (
+              {gridItems.map((item, index) => (
                 <div 
                   key={index}
                   className="rounded-lg p-6 flex flex-col items-center justify-center text-center shadow-lg"
@@ -604,46 +614,159 @@ const Editor = () => {
     return themes[currentTheme as keyof typeof themes] || themes.modern;
   };
 
+  const getThemeStylesForTheme = (theme: string) => {
+    const themes = {
+      modern: {
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        titleColor: '#ffffff',
+        contentColor: '#f8fafc',
+        accentColor: '#667eea'
+      },
+      professional: {
+        background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+        titleColor: '#ecf0f1',
+        contentColor: '#bdc3c7',
+        accentColor: '#3498db'
+      },
+      creative: {
+        background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+        titleColor: '#2c3e50',
+        contentColor: '#34495e',
+        accentColor: '#e91e63'
+      },
+      minimal: {
+        background: '#ffffff',
+        titleColor: '#2c3e50',
+        contentColor: '#7f8c8d',
+        accentColor: '#95a5a6'
+      },
+      vibrant: {
+        background: 'linear-gradient(135deg, #1A202C 0%, #2D3748 100%)',
+        titleColor: '#F56565',
+        contentColor: '#48BB78',
+        accentColor: '#ED8936'
+      },
+      corporate: {
+        background: '#F7FAFC',
+        titleColor: '#2B6CB0',
+        contentColor: '#4A5568',
+        accentColor: '#38B2AC'
+      },
+      dark: {
+        background: 'linear-gradient(135deg, #111111 0%, #1a1a1a 100%)',
+        titleColor: '#00D4FF',
+        contentColor: '#FF6B6B',
+        accentColor: '#4ECDC4'
+      }
+    };
+    return themes[theme as keyof typeof themes] || themes.modern;
+  };
+
   const handlePreview = () => {
-    const themeStyles = getThemeStyles();
-    const previewContent = slides.map((slide, index) => `
-      <div style="
-        page-break-after: always; 
-        padding: 60px; 
-        min-height: 100vh; 
-        display: flex; 
-        flex-direction: column; 
-        justify-content: center;
-        background: ${themeStyles.background};
-        position: relative;
-      ">
-        <h1 style="
-          font-size: 3em; 
-          margin-bottom: 40px; 
-          color: ${themeStyles.titleColor};
-          font-weight: bold;
-          text-align: center;
-        ">${slide.title}</h1>
+    const previewContent = slides.map((slide, index) => {
+      const layout = slide.layout || 'title-content';
+      const imageUrl = slide.design_suggestion?.image_url;
+      const themeStyles = slide.design_suggestion?.style ? {
+        background: slide.design_suggestion.style.background_color || '#ffffff',
+        titleColor: slide.design_suggestion.style.primary_color || '#2c3e50',
+        contentColor: slide.design_suggestion.style.secondary_color || '#7f8c8d',
+        accentColor: slide.design_suggestion.style.accent_color || '#667eea'
+      } : getThemeStylesForTheme(currentTheme);
+
+      const contentLines = slide.content.split('\n').filter(line => line.trim());
+
+      // Generate HTML based on layout
+      let layoutHtml = '';
+      
+      if (layout === 'hero') {
+        layoutHtml = `
+          <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 60px;">
+            ${imageUrl ? `<div style="position: absolute; inset: 0; background-image: url(${imageUrl}); background-size: cover; background-position: center; opacity: 0.2;"></div>` : ''}
+            <div style="position: relative; z-index: 10; max-width: 900px;">
+              <h1 style="font-size: 3.5em; font-weight: bold; margin-bottom: 40px; line-height: 1.2; color: ${themeStyles.titleColor};">${slide.title}</h1>
+              <div style="font-size: 1.5em; line-height: 1.8; color: ${themeStyles.contentColor};">
+                ${contentLines.map(line => `<p style="margin: 20px 0;">${line.replace('• ', '')}</p>`).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (layout === 'two-column') {
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; display: flex; padding: 60px;">
+            <div style="width: 50%; padding-right: 40px;">
+              <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 30px; color: ${themeStyles.titleColor};">${slide.title}</h1>
+              <div style="font-size: 1.2em; line-height: 1.8; color: ${themeStyles.contentColor};">
+                ${contentLines.map(line => `
+                  <p style="display: flex; align-items: flex-start; margin: 15px 0;">
+                    ${line.startsWith('• ') ? `<span style="width: 10px; height: 10px; border-radius: 50%; background: ${themeStyles.accentColor}; margin-right: 15px; margin-top: 8px; flex-shrink: 0;"></span>` : ''}
+                    <span>${line.replace('• ', '')}</span>
+                  </p>
+                `).join('')}
+              </div>
+            </div>
+            <div style="width: 50%; display: flex; align-items: center; justify-center;">
+              ${imageUrl ? `<img src="${imageUrl}" alt="Visual" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);" />` : 
+                `<div style="width: 300px; height: 300px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; background: ${themeStyles.accentColor};">
+                  <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2em;">📊</div>
+                    <p style="font-size: 1em;">Visual Content</p>
+                  </div>
+                </div>`}
+            </div>
+          </div>
+        `;
+      } else if (layout === 'grid') {
+        const gridItems = contentLines.map(line => line.replace('• ', '')).slice(0, 4);
+        // Ensure we have at least 4 items
+        while (gridItems.length < 4) {
+          gridItems.push(`Point ${gridItems.length + 1}`);
+        }
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; padding: 60px;">
+            <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 60px; text-align: center; color: ${themeStyles.titleColor};">${slide.title}</h1>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; height: 60%;">
+              ${gridItems.map((item, idx) => `
+                <div style="border-radius: 10px; padding: 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); background: rgba(${themeStyles.accentColor.replace('#', '')}, 0.1); border-left: 4px solid ${themeStyles.accentColor};">
+                  <div style="width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; color: white; font-weight: bold; font-size: 1.5em; background: ${themeStyles.accentColor};">
+                    ${idx + 1}
+                  </div>
+                  <p style="font-size: 1.2em; font-weight: 500; color: ${themeStyles.contentColor};">${item}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else { // title-content
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 60px;">
+            ${imageUrl ? `<div style="margin-bottom: 40px;"><img src="${imageUrl}" alt="Visual" style="max-width: 400px; max-height: 300px; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);" /></div>` : ''}
+            <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 40px; max-width: 1000px; color: ${themeStyles.titleColor};">${slide.title}</h1>
+            <div style="font-size: 1.3em; line-height: 1.8; max-width: 900px; color: ${themeStyles.contentColor};">
+              ${contentLines.map(line => `
+                <p style="display: flex; align-items: center; justify-content: center; margin: 15px 0;">
+                  ${line.startsWith('• ') ? `<span style="width: 10px; height: 10px; border-radius: 50%; background: ${themeStyles.accentColor}; margin-right: 15px; flex-shrink: 0;"></span>` : ''}
+                  <span>${line.replace('• ', '')}</span>
+                </p>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      return `
         <div style="
-          font-size: 1.4em; 
-          line-height: 1.8; 
-          color: ${themeStyles.contentColor};
-          text-align: center;
-          max-width: 800px;
-          margin: 0 auto;
-        ">${slide.content.replace(/\n/g, '<br>')}</div>
-        <div style="
-          position: absolute; 
-          bottom: 30px; 
-          right: 30px; 
-          color: ${themeStyles.titleColor}; 
-          font-size: 1em;
-          opacity: 0.8;
+          page-break-after: always; 
+          min-height: 100vh; 
+          background: ${themeStyles.background};
+          position: relative;
         ">
-          ${index + 1} / ${slides.length}
+          ${layoutHtml}
+          <div style="position: absolute; bottom: 30px; right: 30px; color: ${themeStyles.titleColor}; font-size: 1em; opacity: 0.6;">
+            ${index + 1} / ${slides.length}
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     const previewWindow = window.open('', '_blank');
     if (previewWindow) {
@@ -663,6 +786,18 @@ const Editor = () => {
     }
   };
 
+  const getTimeSince = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 120) return '1 minute ago';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 7200) return '1 hour ago';
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 172800) return '1 day ago';
+    return `${Math.floor(seconds / 86400)} days ago`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -679,8 +814,10 @@ const Editor = () => {
                 </Link>
               </Button>
               <div>
-                <h1 className="font-semibold">Marketing Strategy Q1 2024</h1>
-                <p className="text-xs text-muted-foreground">Last saved: 2 minutes ago</p>
+                <h1 className="font-semibold">{presentation?.title || 'Untitled Presentation'}</h1>
+                <p className="text-xs text-muted-foreground">
+                  {lastSaved ? `Last saved: ${getTimeSince(lastSaved)}` : 'Not saved yet'}
+                </p>
               </div>
             </div>
             
