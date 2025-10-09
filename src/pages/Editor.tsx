@@ -19,6 +19,7 @@ import {
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Slide {
@@ -47,6 +48,7 @@ const Editor = () => {
   const [selectedSlide, setSelectedSlide] = useState(0);
   const [currentTheme, setCurrentTheme] = useState('modern');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [presentation, setPresentation] = useState<any>(null);
   const [slides, setSlides] = useState<Slide[]>([
@@ -98,6 +100,41 @@ const Editor = () => {
       [field]: value
     };
     setSlides(newSlides);
+  };
+
+  const refineSlide = async (instruction: string) => {
+    const slide = slides[selectedSlide];
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('refine-slide', {
+        body: {
+          slideContent: {
+            title: slide.title,
+            content: slide.content,
+          },
+          instruction,
+          layout: slide.layout
+        }
+      });
+
+      if (error) throw error;
+
+      const newSlides = [...slides];
+      newSlides[selectedSlide] = {
+        ...newSlides[selectedSlide],
+        title: data.title,
+        content: data.content,
+        notes: data.notes || newSlides[selectedSlide].notes
+      };
+      setSlides(newSlides);
+      sonnerToast.success('Slide refined successfully!');
+    } catch (error) {
+      console.error('Error refining slide:', error);
+      sonnerToast.error('Failed to refine slide');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Load presentation data if editing existing
@@ -291,15 +328,12 @@ const Editor = () => {
     slidesData.forEach((slide, index) => {
       const pptxSlide = pres.addSlide();
       
-      // Get theme for this slide
       const slideTheme = slide.theme || currentTheme;
       const themeStyles = getThemeStylesForTheme(slideTheme);
       const layout = slide.layout || 'title-content';
       
-      // Extract background color from gradient or solid color
       let bgColor = 'FFFFFF';
       if (themeStyles.background.includes('gradient')) {
-        // Extract first color from gradient
         const match = themeStyles.background.match(/#([0-9a-fA-F]{6})/);
         if (match) bgColor = match[1];
       } else if (themeStyles.background.startsWith('#')) {
@@ -312,7 +346,9 @@ const Editor = () => {
       const contentColor = themeStyles.contentColor.replace('#', '');
       const accentColor = themeStyles.accentColor.replace('#', '');
       
-      // Render based on layout
+      // Grid icons mapping
+      const gridIcons = ['💡', '🎯', '📊', '🚀', '⚡', '🔑', '💎', '🌟'];
+      
       if (layout === 'hero') {
         pptxSlide.addText(String(slide.title || ''), {
           x: 0.5, y: 2.5, w: 9, h: 2,
@@ -337,7 +373,6 @@ const Editor = () => {
             fontSize: 16, color: contentColor
           });
         });
-        // Placeholder for image
         pptxSlide.addShape(pres.ShapeType.rect, {
           x: 5.5, y: 1.5, w: 4, h: 4,
           fill: { color: accentColor, transparency: 20 }
@@ -362,18 +397,16 @@ const Editor = () => {
             fill: { color: accentColor, transparency: 80 },
             line: { color: accentColor, width: 2 }
           });
-          pptxSlide.addText(String(i + 1 || ''), {
-            x: positions[i].x + 1.7, y: positions[i].y + 0.3, w: 0.8, h: 0.8,
-            fontSize: 24, bold: true, align: 'center', color: 'FFFFFF',
-            shape: pres.ShapeType.ellipse,
-            fill: { color: accentColor }
+          pptxSlide.addText(gridIcons[i], {
+            x: positions[i].x + 0.3, y: positions[i].y + 0.2, w: 0.6, h: 0.6,
+            fontSize: 32, align: 'center'
           });
           pptxSlide.addText(String(item || ''), {
-            x: positions[i].x + 0.2, y: positions[i].y + 1.2, w: 3.8, h: 0.6,
-            fontSize: 14, align: 'center', color: contentColor
+            x: positions[i].x + 0.2, y: positions[i].y + 1.0, w: 3.8, h: 0.8,
+            fontSize: 14, align: 'left', color: contentColor, bold: true
           });
         });
-      } else { // title-content
+      } else {
         pptxSlide.addText(String(slide.title || ''), {
           x: 0.5, y: 1.5, w: 9, h: 1,
           fontSize: 36, bold: true, align: 'center', color: titleColor
@@ -387,7 +420,6 @@ const Editor = () => {
         });
       }
       
-      // Add slide number
       pptxSlide.addText(String(`${index + 1} / ${slidesData.length}`), {
         x: 9, y: 6.8, w: 0.8, h: 0.3,
         fontSize: 10, align: 'right', color: titleColor
@@ -1189,6 +1221,46 @@ const Editor = () => {
                   className="min-h-32 resize-none"
                   placeholder="Enter slide content..."
                 />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Refine with AI
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refineSlide('concise')}
+                    disabled={isLoading}
+                  >
+                    Make Concise
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refineSlide('detailed')}
+                    disabled={isLoading}
+                  >
+                    Add Details
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refineSlide('professional')}
+                    disabled={isLoading}
+                  >
+                    Professional
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => refineSlide('technical')}
+                    disabled={isLoading}
+                  >
+                    Technical
+                  </Button>
+                </div>
               </div>
 
               <div>
