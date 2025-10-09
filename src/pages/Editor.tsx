@@ -118,7 +118,14 @@ const Editor = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Refine slide error:', error);
+        throw error;
+      }
+
+      if (!data || !data.title) {
+        throw new Error('Invalid response from AI service');
+      }
 
       const newSlides = [...slides];
       newSlides[selectedSlide] = {
@@ -129,9 +136,10 @@ const Editor = () => {
       };
       setSlides(newSlides);
       sonnerToast.success('Slide refined successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error refining slide:', error);
-      sonnerToast.error('Failed to refine slide');
+      const errorMessage = error?.message || 'Failed to refine slide. Please try again.';
+      sonnerToast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -384,8 +392,13 @@ const Editor = () => {
         });
         const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
         let gridItems = contentLines.map(l => l.replace('• ', ''));
-        while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
-        gridItems = gridItems.slice(0, 4);
+        // Ensure exactly 4 items in grid
+        while (gridItems.length < 4) {
+          gridItems.push(`Key Point ${gridItems.length + 1}`);
+        }
+        if (gridItems.length > 4) {
+          gridItems = gridItems.slice(0, 4);
+        }
         
         const positions = [
           { x: 0.5, y: 2 }, { x: 5.2, y: 2 },
