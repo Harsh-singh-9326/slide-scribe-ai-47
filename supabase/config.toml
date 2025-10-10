@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.refine-slide]
 verify_jwt = true
+
+[functions.generate-image]
+verify_jwt = true

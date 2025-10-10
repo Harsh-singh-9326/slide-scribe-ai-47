@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, FileText, Download, Calendar, Trash2 } from "lucide-react";
+import { PresentationPreview } from "@/components/PresentationPreview";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
@@ -65,9 +66,43 @@ const Dashboard = () => {
     }
   };
 
+  const trackAnalytics = async (presentationId: string, eventType: 'view' | 'download') => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('presentation_analytics').insert({
+        presentation_id: presentationId,
+        user_id: user.id,
+        event_type: eventType,
+        event_data: { timestamp: new Date().toISOString() }
+      });
+
+      // Update counter - get current count and increment
+      const { data: presentation } = await supabase
+        .from('presentations')
+        .select(`${eventType}_count`)
+        .eq('id', presentationId)
+        .single();
+
+      if (presentation) {
+        await supabase
+          .from('presentations')
+          .update({ 
+            [`${eventType}_count`]: (presentation[`${eventType}_count`] || 0) + 1
+          })
+          .eq('id', presentationId);
+      }
+    } catch (error) {
+      console.error('Analytics tracking error:', error);
+    }
+  };
+
   const handleDownload = async (presentationId: string, format: 'pptx' | 'pdf', event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent opening the presentation
     try {
+      await trackAnalytics(presentationId, 'download');
+      
       // Get presentation data
       const presentation = presentations.find(p => p.id === presentationId);
       if (!presentation) {

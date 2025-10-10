@@ -14,11 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      presentation_analytics: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          presentation_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          presentation_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          presentation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presentation_analytics_presentation_id_fkey"
+            columns: ["presentation_id"]
+            isOneToOne: false
+            referencedRelation: "presentations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presentations: {
         Row: {
           content: Json | null
           created_at: string
           description: string | null
+          download_count: number | null
           file_url: string | null
           id: string
           slide_count: number | null
@@ -26,11 +62,13 @@ export type Database = {
           title: string
           updated_at: string
           user_id: string
+          view_count: number | null
         }
         Insert: {
           content?: Json | null
           created_at?: string
           description?: string | null
+          download_count?: number | null
           file_url?: string | null
           id?: string
           slide_count?: number | null
@@ -38,11 +76,13 @@ export type Database = {
           title: string
           updated_at?: string
           user_id: string
+          view_count?: number | null
         }
         Update: {
           content?: Json | null
           created_at?: string
           description?: string | null
+          download_count?: number | null
           file_url?: string | null
           id?: string
           slide_count?: number | null
@@ -50,6 +90,7 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+          view_count?: number | null
         }
         Relationships: []
       }

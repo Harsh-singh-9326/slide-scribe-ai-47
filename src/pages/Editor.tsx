@@ -14,10 +14,12 @@ import {
   Type, 
   Save,
   ArrowLeft,
-  Eye
+  Eye,
+  Wand2
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
+import { ImageManager } from "@/components/ImageManager";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -93,13 +95,46 @@ const Editor = () => {
     }
   };
 
-  const updateSlide = (field: 'title' | 'content' | 'notes', value: string) => {
+  const updateSlide = (field: 'title' | 'content' | 'notes' | 'layout' | 'theme', value: string) => {
     const newSlides = [...slides];
     newSlides[selectedSlide] = {
       ...newSlides[selectedSlide],
       [field]: value
     };
     setSlides(newSlides);
+  };
+
+  const handleImageSelect = (imageUrl: string) => {
+    const newSlides = [...slides];
+    newSlides[selectedSlide] = {
+      ...newSlides[selectedSlide],
+      design_suggestion: {
+        ...newSlides[selectedSlide].design_suggestion,
+        image_url: imageUrl
+      }
+    };
+    setSlides(newSlides);
+    toast({
+      title: "Image Added",
+      description: "Image has been added to the slide",
+    });
+  };
+
+  const trackAnalytics = async (eventType: 'view' | 'download' | 'edit') => {
+    if (!id) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('presentation_analytics').insert({
+        presentation_id: id,
+        user_id: user.id,
+        event_type: eventType,
+        event_data: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      console.error('Analytics error:', error);
+    }
   };
 
   const refineSlide = async (instruction: string) => {
@@ -149,6 +184,7 @@ const Editor = () => {
   useEffect(() => {
     if (id && id !== 'new') {
       loadPresentation();
+      trackAnalytics('view');
     }
   }, [id]);
 
@@ -216,6 +252,7 @@ const Editor = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      await trackAnalytics('edit');
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({
@@ -285,6 +322,7 @@ const Editor = () => {
 
   const handleExport = async (format: 'pptx' | 'pdf') => {
     try {
+      await trackAnalytics('download');
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({
@@ -1247,7 +1285,8 @@ const Editor = () => {
                     onClick={() => refineSlide('concise')}
                     disabled={isLoading}
                   >
-                    Make Concise
+                    <Wand2 className="w-3 h-3 mr-1" />
+                    Concise
                   </Button>
                   <Button 
                     variant="outline" 
@@ -1255,7 +1294,8 @@ const Editor = () => {
                     onClick={() => refineSlide('detailed')}
                     disabled={isLoading}
                   >
-                    Add Details
+                    <Wand2 className="w-3 h-3 mr-1" />
+                    Detailed
                   </Button>
                   <Button 
                     variant="outline" 
@@ -1263,6 +1303,7 @@ const Editor = () => {
                     onClick={() => refineSlide('professional')}
                     disabled={isLoading}
                   >
+                    <Wand2 className="w-3 h-3 mr-1" />
                     Professional
                   </Button>
                   <Button 
@@ -1271,7 +1312,63 @@ const Editor = () => {
                     onClick={() => refineSlide('technical')}
                     disabled={isLoading}
                   >
+                    <Wand2 className="w-3 h-3 mr-1" />
                     Technical
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Image
+                </label>
+                <ImageManager onImageSelect={handleImageSelect} />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-muted-foreground block mb-2">
+                  Theme
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    variant={currentTheme === 'modern' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCurrentTheme('modern');
+                      updateSlide('theme', 'modern');
+                    }}
+                  >
+                    Modern
+                  </Button>
+                  <Button 
+                    variant={currentTheme === 'professional' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCurrentTheme('professional');
+                      updateSlide('theme', 'professional');
+                    }}
+                  >
+                    Professional
+                  </Button>
+                  <Button 
+                    variant={currentTheme === 'creative' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCurrentTheme('creative');
+                      updateSlide('theme', 'creative');
+                    }}
+                  >
+                    Creative
+                  </Button>
+                  <Button 
+                    variant={currentTheme === 'minimal' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setCurrentTheme('minimal');
+                      updateSlide('theme', 'minimal');
+                    }}
+                  >
+                    Minimal
                   </Button>
                 </div>
               </div>
