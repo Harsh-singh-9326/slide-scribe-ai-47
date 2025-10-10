@@ -113,6 +113,14 @@ const Header = () => {
             Dashboard
           </Link>
           <Link
+            to="/analytics"
+            className={`text-sm font-medium transition-colors hover:text-primary ${
+              isActive("/analytics") ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            Analytics
+          </Link>
+          <Link
             to="/create"
             className={`text-sm font-medium transition-colors hover:text-primary ${
               isActive("/create") ? "text-primary" : "text-muted-foreground"
@@ -182,6 +190,13 @@ const Header = () => {
               onClick={() => setIsMobileMenuOpen(false)}
             >
               Dashboard
+            </Link>
+            <Link
+              to="/analytics"
+              className="block text-sm font-medium text-muted-foreground hover:text-primary"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              Analytics
             </Link>
             <Link
               to="/create"

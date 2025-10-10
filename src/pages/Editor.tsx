@@ -15,7 +15,9 @@ import {
   Save,
   ArrowLeft,
   Eye,
-  Wand2
+  Wand2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
@@ -1214,8 +1216,33 @@ const Editor = () => {
           {/* Slide Preview - Main Area */}
           <div className="flex-1 p-6 overflow-y-auto">
             <div className="max-w-6xl mx-auto">
+              {/* Preview Controls */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setSelectedSlide(Math.max(0, selectedSlide - 1))}
+                    disabled={selectedSlide === 0}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium px-3">
+                    Slide {selectedSlide + 1} / {slides.length}
+                  </span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setSelectedSlide(Math.min(slides.length - 1, selectedSlide + 1))}
+                    disabled={selectedSlide === slides.length - 1}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
               {/* Slide Preview */}
-              <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+              <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6 transform transition-transform">
                 {renderSlidePreview()}
               </div>
 
@@ -1327,45 +1354,49 @@ const Editor = () => {
 
               <div>
                 <label className="text-sm font-medium text-muted-foreground block mb-2">
-                  Theme
+                  Quick Theme
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <Button 
-                    variant={currentTheme === 'modern' ? 'default' : 'outline'}
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'modern' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setCurrentTheme('modern');
-                      updateSlide('theme', 'modern');
+                      const newSlides = [...slides];
+                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'modern' };
+                      setSlides(newSlides);
                     }}
                   >
                     Modern
                   </Button>
                   <Button 
-                    variant={currentTheme === 'professional' ? 'default' : 'outline'}
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'professional' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setCurrentTheme('professional');
-                      updateSlide('theme', 'professional');
+                      const newSlides = [...slides];
+                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'professional' };
+                      setSlides(newSlides);
                     }}
                   >
                     Professional
                   </Button>
                   <Button 
-                    variant={currentTheme === 'creative' ? 'default' : 'outline'}
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'creative' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setCurrentTheme('creative');
-                      updateSlide('theme', 'creative');
+                      const newSlides = [...slides];
+                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'creative' };
+                      setSlides(newSlides);
                     }}
                   >
                     Creative
                   </Button>
                   <Button 
-                    variant={currentTheme === 'minimal' ? 'default' : 'outline'}
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'minimal' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      setCurrentTheme('minimal');
-                      updateSlide('theme', 'minimal');
+                      const newSlides = [...slides];
+                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'minimal' };
+                      setSlides(newSlides);
                     }}
                   >
                     Minimal

@@ -347,6 +347,36 @@ const Dashboard = () => {
           </Card>
         </div>
 
+        {/* Analytics Section */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Analytics Overview</CardTitle>
+            <CardDescription>
+              Track your presentation performance and engagement
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Total Views</p>
+                <p className="text-2xl font-bold">{presentations.reduce((acc, p) => acc + (p.view_count || 0), 0)}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Total Downloads</p>
+                <p className="text-2xl font-bold">{presentations.reduce((acc, p) => acc + (p.download_count || 0), 0)}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Most Downloaded</p>
+                <p className="text-lg font-medium">{
+                  presentations.length > 0
+                    ? presentations.sort((a, b) => (b.download_count || 0) - (a.download_count || 0))[0]?.title.slice(0, 30) + '...'
+                    : 'N/A'
+                }</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Recent Projects */}
         <Card>
           <CardHeader>
