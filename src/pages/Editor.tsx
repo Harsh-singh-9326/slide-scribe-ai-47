@@ -801,9 +801,13 @@ const Editor = () => {
   };
 
   const getThemeStyles = () => {
-    // Use AI-generated style if available
     const currentSlide = slides[selectedSlide];
-    if (currentSlide?.design_suggestion?.style) {
+    
+    // Prioritize manually selected theme over AI-generated style
+    const themeToUse = currentSlide?.theme || currentTheme;
+    
+    // Only use AI style if no manual theme is selected AND theme is default/modern
+    if (!currentSlide?.theme && currentTheme === 'modern' && currentSlide?.design_suggestion?.style) {
       const aiStyle = currentSlide.design_suggestion.style;
       return {
         background: aiStyle.background_color || '#ffffff',
@@ -812,9 +816,6 @@ const Editor = () => {
         accentColor: aiStyle.accent_color || '#667eea'
       };
     }
-
-    // Use per-slide theme if set, otherwise use global theme
-    const themeToUse = currentSlide?.theme || currentTheme;
 
     // Fallback to preset themes
     const themes = {
