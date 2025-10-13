@@ -1363,7 +1363,6 @@ const Editor = () => {
                     size="sm"
                     onClick={() => {
                       updateSlide('theme', 'modern');
-                      console.log('Theme set to modern for slide', selectedSlide);
                     }}
                   >
                     Modern
@@ -1373,7 +1372,6 @@ const Editor = () => {
                     size="sm"
                     onClick={() => {
                       updateSlide('theme', 'professional');
-                      console.log('Theme set to professional for slide', selectedSlide);
                     }}
                   >
                     Professional
@@ -1383,7 +1381,6 @@ const Editor = () => {
                     size="sm"
                     onClick={() => {
                       updateSlide('theme', 'creative');
-                      console.log('Theme set to creative for slide', selectedSlide);
                     }}
                   >
                     Creative
@@ -1393,10 +1390,37 @@ const Editor = () => {
                     size="sm"
                     onClick={() => {
                       updateSlide('theme', 'minimal');
-                      console.log('Theme set to minimal for slide', selectedSlide);
                     }}
                   >
                     Minimal
+                  </Button>
+                  <Button 
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'vibrant' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      updateSlide('theme', 'vibrant');
+                    }}
+                  >
+                    Vibrant
+                  </Button>
+                  <Button 
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'corporate' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      updateSlide('theme', 'corporate');
+                    }}
+                  >
+                    Corporate
+                  </Button>
+                  <Button 
+                    variant={(slides[selectedSlide]?.theme || currentTheme) === 'dark' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      updateSlide('theme', 'dark');
+                    }}
+                    className="col-span-2"
+                  >
+                    Dark
                   </Button>
                 </div>
               </div>
