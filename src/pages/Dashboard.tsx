@@ -399,8 +399,8 @@ const Dashboard = () => {
                     className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                     onClick={() => navigate(`/editor/${presentation.id}`)}
                   >
-                    {/* Preview Section - Taller height */}
-                    <div className="h-64 bg-gradient-to-br from-muted/50 to-muted p-6 flex flex-col justify-between border-b">
+                    {/* Preview Section - Better aspect ratio for full content */}
+                    <div className="aspect-[16/9] bg-gradient-to-br from-muted/50 to-muted p-6 flex flex-col justify-between border-b">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">

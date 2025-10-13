@@ -192,7 +192,8 @@ OUTPUT FORMAT (strict JSON):
       "content_bullets": [
         "Concise bullet point 1",
         "Engaging bullet point 2", 
-        "Clear bullet point 3"
+        "Clear bullet point 3",
+        "Impactful bullet point 4"
       ],
       "design_suggestion": {
         "layout": "title+image|two-column|grid|chart|infographic|hero",
