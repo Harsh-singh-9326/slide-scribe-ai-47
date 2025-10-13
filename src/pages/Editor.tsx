@@ -1361,9 +1361,8 @@ const Editor = () => {
                     variant={(slides[selectedSlide]?.theme || currentTheme) === 'modern' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      const newSlides = [...slides];
-                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'modern' };
-                      setSlides(newSlides);
+                      updateSlide('theme', 'modern');
+                      console.log('Theme set to modern for slide', selectedSlide);
                     }}
                   >
                     Modern
@@ -1372,9 +1371,8 @@ const Editor = () => {
                     variant={(slides[selectedSlide]?.theme || currentTheme) === 'professional' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      const newSlides = [...slides];
-                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'professional' };
-                      setSlides(newSlides);
+                      updateSlide('theme', 'professional');
+                      console.log('Theme set to professional for slide', selectedSlide);
                     }}
                   >
                     Professional
@@ -1383,9 +1381,8 @@ const Editor = () => {
                     variant={(slides[selectedSlide]?.theme || currentTheme) === 'creative' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      const newSlides = [...slides];
-                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'creative' };
-                      setSlides(newSlides);
+                      updateSlide('theme', 'creative');
+                      console.log('Theme set to creative for slide', selectedSlide);
                     }}
                   >
                     Creative
@@ -1394,9 +1391,8 @@ const Editor = () => {
                     variant={(slides[selectedSlide]?.theme || currentTheme) === 'minimal' ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => {
-                      const newSlides = [...slides];
-                      newSlides[selectedSlide] = { ...newSlides[selectedSlide], theme: 'minimal' };
-                      setSlides(newSlides);
+                      updateSlide('theme', 'minimal');
+                      console.log('Theme set to minimal for slide', selectedSlide);
                     }}
                   >
                     Minimal
