@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, FileText, Download, Calendar, Trash2 } from "lucide-react";
-import { PresentationPreview } from "@/components/PresentationPreview";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
@@ -160,46 +159,111 @@ const Dashboard = () => {
     }
   };
 
+  const getThemeStylesForTheme = (theme: string) => {
+    const themes = {
+      modern: {
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        titleColor: '#ffffff',
+        contentColor: '#f8fafc',
+        accentColor: '#667eea'
+      },
+      professional: {
+        background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 100%)',
+        titleColor: '#ecf0f1',
+        contentColor: '#bdc3c7',
+        accentColor: '#3498db'
+      },
+      creative: {
+        background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)',
+        titleColor: '#2c3e50',
+        contentColor: '#34495e',
+        accentColor: '#e91e63'
+      },
+      minimal: {
+        background: '#ffffff',
+        titleColor: '#2c3e50',
+        contentColor: '#7f8c8d',
+        accentColor: '#95a5a6'
+      },
+      vibrant: {
+        background: 'linear-gradient(135deg, #1A202C 0%, #2D3748 100%)',
+        titleColor: '#F56565',
+        contentColor: '#48BB78',
+        accentColor: '#ED8936'
+      },
+      corporate: {
+        background: '#F7FAFC',
+        titleColor: '#2B6CB0',
+        contentColor: '#4A5568',
+        accentColor: '#38B2AC'
+      },
+      dark: {
+        background: 'linear-gradient(135deg, #111111 0%, #1a1a1a 100%)',
+        titleColor: '#00D4FF',
+        contentColor: '#FF6B6B',
+        accentColor: '#4ECDC4'
+      }
+    };
+    return themes[theme as keyof typeof themes] || themes.modern;
+  };
+
   const generatePPTX = async (presentation: any, slides: any[]) => {
     const pptx = await import('pptxgenjs');
     const pres = new pptx.default();
 
+    const theme = presentation?.theme || 'modern';
+    const themeStyles = getThemeStylesForTheme(theme);
+
+    const bgToHex = (background: string) => {
+      if (background.includes('gradient')) {
+        const match = background.match(/#([0-9a-fA-F]{6})/);
+        if (match) return match[1];
+      }
+      if (background.startsWith('#')) return background.replace('#', '');
+      return 'FFFFFF';
+    };
+
+    const bgColor = bgToHex(themeStyles.background);
+    const titleColor = themeStyles.titleColor.replace('#', '');
+    const contentColor = themeStyles.contentColor.replace('#', '');
+
     slides.forEach((slide, index) => {
       const pptxSlide = pres.addSlide();
-      
-      // Add title
-      pptxSlide.addText(slide.title, {
+      pptxSlide.background = { color: bgColor };
+      pptxSlide.addNotes(String(slide.notes || ''));
+
+      pptxSlide.addText(String(slide.title || ''), {
         x: 0.5,
         y: 1,
         w: 9,
         h: 1,
-        fontSize: 24,
+        fontSize: 28,
         bold: true,
         align: 'center',
-        color: '363636'
+        color: titleColor,
       });
 
-      // Add content
-      pptxSlide.addText(slide.content || '', {
-        x: 0.5,
-        y: 2.5,
-        w: 9,
-        h: 4,
-        fontSize: 16,
-        align: 'left',
-        color: '666666',
-        valign: 'top'
+      const lines = String(slide.content || '').split('\n').filter((l) => l.trim());
+      lines.forEach((line, i) => {
+        pptxSlide.addText(String('• ' + line.replace('• ', '')), {
+          x: 1,
+          y: 2.3 + (i * 0.5),
+          w: 8,
+          h: 0.5,
+          fontSize: 16,
+          align: 'left',
+          color: contentColor,
+        });
       });
 
-      // Add slide number
-      pptxSlide.addText(`${index + 1}`, {
+      pptxSlide.addText(`${index + 1} / ${slides.length}`, {
         x: 9,
         y: 6.8,
         w: 1,
         h: 0.3,
-        fontSize: 12,
+        fontSize: 10,
         align: 'right',
-        color: '999999'
+        color: titleColor,
       });
     });
 
@@ -208,25 +272,52 @@ const Dashboard = () => {
 
   const generatePDF = async (presentation: any, slides: any[]) => {
     const jsPDF = (await import('jspdf')).default;
-    const pdf = new jsPDF();
+    const pdf = new jsPDF('landscape', 'mm', 'a4');
+
+    const theme = presentation?.theme || 'modern';
+    const themeStyles = getThemeStylesForTheme(theme);
+
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 0, g: 0, b: 0 };
+    };
+
+    const bgHex = themeStyles.background.includes('gradient')
+      ? ('#' + (themeStyles.background.match(/#([0-9a-fA-F]{6})/)?.[1] || 'FFFFFF'))
+      : (themeStyles.background.startsWith('#') ? themeStyles.background : '#FFFFFF');
+
+    const bg = hexToRgb(bgHex);
+    const title = hexToRgb(themeStyles.titleColor);
+    const content = hexToRgb(themeStyles.contentColor);
 
     slides.forEach((slide, index) => {
-      if (index > 0) pdf.addPage();
+      if (index > 0) pdf.addPage('a4', 'landscape');
 
-      // Add title
-      pdf.setFontSize(24);
+      pdf.setFillColor(bg.r, bg.g, bg.b);
+      pdf.rect(0, 0, 297, 210, 'F');
+
+      pdf.setTextColor(title.r, title.g, title.b);
+      pdf.setFontSize(28);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(slide.title, 105, 40, { align: 'center' });
+      pdf.text(String(slide.title || ''), 148.5, 55, { align: 'center', maxWidth: 250 });
 
-      // Add content
-      pdf.setFontSize(14);
+      pdf.setTextColor(content.r, content.g, content.b);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'normal');
-      const splitContent = pdf.splitTextToSize(slide.content || '', 170);
-      pdf.text(splitContent, 20, 80);
 
-      // Add slide number
+      const lines = String(slide.content || '').split('\n').filter((l) => l.trim());
+      let yPos = 85;
+      lines.forEach((line) => {
+        pdf.text('• ' + line.replace('• ', ''), 148.5, yPos, { align: 'center', maxWidth: 220 });
+        yPos += 14;
+      });
+
       pdf.setFontSize(10);
-      pdf.text(`${index + 1} / ${slides.length}`, 190, 280, { align: 'right' });
+      pdf.text(`${index + 1} / ${slides.length}`, 280, 200, { align: 'right' });
     });
 
     pdf.save(`${presentation.title}.pdf`);

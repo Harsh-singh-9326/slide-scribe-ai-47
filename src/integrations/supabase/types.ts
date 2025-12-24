@@ -170,10 +170,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      request_password_reset: {
-        Args: { email_address: string }
-        Returns: Json
-      }
+      request_password_reset: { Args: { email_address: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
