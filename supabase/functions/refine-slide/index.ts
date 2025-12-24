@@ -28,6 +28,7 @@ serve(async (req) => {
       'professional': 'Rewrite this slide content in a professional, corporate tone. Use formal language and business terminology.',
       'casual': 'Rewrite this slide content in a friendly, casual tone. Make it conversational and easy to understand.',
       'technical': 'Rewrite this slide content with more technical depth. Add technical terms, specifications, and detailed explanations.',
+      'regenerate-bullets': 'Rewrite this slide content into exactly 4 clear, concise bullet points while keeping the original meaning intact. Each bullet should be impactful and easy to understand. Do not add or remove key ideas, just reorganize and rewrite into exactly 4 bullets.',
       'custom': instruction
     };
 
