@@ -501,6 +501,96 @@ const Editor = () => {
             fontSize: 14, align: 'left', color: contentColor, bold: true
           });
         });
+      } else if (layout === 'image-left') {
+        pptxSlide.addShape(pres.ShapeType.rect, {
+          x: 0.5, y: 1.5, w: 4, h: 4,
+          fill: { color: accentColor, transparency: 20 }
+        });
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 5, y: 0.5, w: 4.5, h: 1,
+          fontSize: 32, bold: true, color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        contentLines.forEach((line, i) => {
+          pptxSlide.addText(String(line.replace('• ', '• ') || ''), {
+            x: 5, y: 1.8 + (i * 0.5), w: 4.5, h: 0.5,
+            fontSize: 16, color: contentColor
+          });
+        });
+      } else if (layout === 'quote') {
+        pptxSlide.addText('"', {
+          x: 0.5, y: 1, w: 2, h: 2,
+          fontSize: 120, color: accentColor, transparency: 70
+        });
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 1, y: 2.5, w: 8, h: 2,
+          fontSize: 28, italic: true, align: 'center', color: titleColor
+        });
+        const firstLine = String(slide.content || '').split('\n')[0]?.replace('• ', '') || '';
+        pptxSlide.addText(firstLine, {
+          x: 2, y: 5, w: 6, h: 0.5,
+          fontSize: 18, align: 'center', color: contentColor
+        });
+      } else if (layout === 'comparison') {
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 0.3, w: 9, h: 0.8,
+          fontSize: 32, bold: true, align: 'center', color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        const leftItems = contentLines.slice(0, 2).map(l => l.replace('• ', ''));
+        const rightItems = contentLines.slice(2, 4).map(l => l.replace('• ', ''));
+        
+        pptxSlide.addShape(pres.ShapeType.rect, {
+          x: 0.5, y: 1.5, w: 4.2, h: 4.5,
+          fill: { color: accentColor, transparency: 85 }
+        });
+        pptxSlide.addText('Option A', {
+          x: 0.5, y: 1.6, w: 4.2, h: 0.6,
+          fontSize: 20, bold: true, align: 'center', color: accentColor
+        });
+        leftItems.forEach((item, i) => {
+          pptxSlide.addText('• ' + (item || `Point ${i + 1}`), {
+            x: 0.7, y: 2.5 + (i * 0.6), w: 3.8, h: 0.5,
+            fontSize: 14, color: contentColor
+          });
+        });
+        
+        pptxSlide.addShape(pres.ShapeType.rect, {
+          x: 5.3, y: 1.5, w: 4.2, h: 4.5,
+          fill: { color: accentColor, transparency: 85 }
+        });
+        pptxSlide.addText('Option B', {
+          x: 5.3, y: 1.6, w: 4.2, h: 0.6,
+          fontSize: 20, bold: true, align: 'center', color: accentColor
+        });
+        rightItems.forEach((item, i) => {
+          pptxSlide.addText('• ' + (item || `Point ${i + 1}`), {
+            x: 5.5, y: 2.5 + (i * 0.6), w: 3.8, h: 0.5,
+            fontSize: 14, color: contentColor
+          });
+        });
+      } else if (layout === 'stats') {
+        pptxSlide.addText(String(slide.title || ''), {
+          x: 0.5, y: 0.5, w: 9, h: 0.8,
+          fontSize: 32, bold: true, align: 'center', color: titleColor
+        });
+        const contentLines = String(slide.content || '').split('\n').filter(l => l.trim());
+        const stats = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        const icons = ['📈', '🎯', '💡', '🚀'];
+        const positions = [
+          { x: 0.5, y: 2.5 }, { x: 2.8, y: 2.5 },
+          { x: 5.1, y: 2.5 }, { x: 7.4, y: 2.5 }
+        ];
+        stats.forEach((stat, i) => {
+          pptxSlide.addText(icons[i], {
+            x: positions[i].x, y: positions[i].y, w: 2, h: 1,
+            fontSize: 48, align: 'center'
+          });
+          pptxSlide.addText(stat || `Stat ${i + 1}`, {
+            x: positions[i].x, y: positions[i].y + 1.5, w: 2, h: 0.8,
+            fontSize: 14, align: 'center', color: contentColor
+          });
+        });
       } else {
         pptxSlide.addText(String(slide.title || ''), {
           x: 0.5, y: 1.5, w: 9, h: 1,
@@ -628,6 +718,90 @@ const Editor = () => {
           pdf.setFontSize(14);
           pdf.setFont('helvetica', 'normal');
           pdf.text(item, positions[i].x + 60, positions[i].y + 35, { align: 'center', maxWidth: 110 });
+        });
+      } else if (layout === 'image-left') {
+        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b, 0.2);
+        pdf.roundedRect(20, 40, 120, 120, 5, 5, 'F');
+        
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(28);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 160, 50, { maxWidth: 120 });
+        
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'normal');
+        let yPos = 80;
+        contentLines.forEach((line: string) => {
+          pdf.text('• ' + line.replace('• ', ''), 160, yPos, { maxWidth: 120 });
+          yPos += 12;
+        });
+      } else if (layout === 'quote') {
+        pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+        pdf.setFontSize(100);
+        pdf.text('"', 30, 80);
+        
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'italic');
+        pdf.text(slide.title, 148.5, 100, { align: 'center', maxWidth: 220 });
+        
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'normal');
+        const firstLine = contentLines[0]?.replace('• ', '') || '';
+        pdf.text(firstLine, 148.5, 140, { align: 'center', maxWidth: 200 });
+      } else if (layout === 'comparison') {
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(28);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 148.5, 30, { align: 'center' });
+        
+        const leftItems = contentLines.slice(0, 2).map((l: string) => l.replace('• ', ''));
+        const rightItems = contentLines.slice(2, 4).map((l: string) => l.replace('• ', ''));
+        
+        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b, 0.1);
+        pdf.roundedRect(20, 50, 120, 120, 5, 5, 'F');
+        pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Option A', 80, 65, { align: 'center' });
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'normal');
+        leftItems.forEach((item: string, i: number) => {
+          pdf.text('• ' + (item || `Point ${i + 1}`), 30, 90 + (i * 20), { maxWidth: 100 });
+        });
+        
+        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b, 0.1);
+        pdf.roundedRect(160, 50, 120, 120, 5, 5, 'F');
+        pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Option B', 220, 65, { align: 'center' });
+        pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'normal');
+        rightItems.forEach((item: string, i: number) => {
+          pdf.text('• ' + (item || `Point ${i + 1}`), 170, 90 + (i * 20), { maxWidth: 100 });
+        });
+      } else if (layout === 'stats') {
+        pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
+        pdf.setFontSize(28);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(slide.title, 148.5, 40, { align: 'center' });
+        
+        const stats = contentLines.slice(0, 4).map((l: string) => l.replace('• ', ''));
+        const icons = ['📈', '🎯', '💡', '🚀'];
+        const positions = [40, 110, 180, 250];
+        
+        stats.forEach((stat: string, i: number) => {
+          pdf.setFontSize(36);
+          pdf.text(icons[i], positions[i], 90, { align: 'center' });
+          pdf.setTextColor(contentColor.r, contentColor.g, contentColor.b);
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'normal');
+          pdf.text(stat || `Stat ${i + 1}`, positions[i], 120, { align: 'center', maxWidth: 60 });
         });
       } else { // title-content
         pdf.setTextColor(titleColor.r, titleColor.g, titleColor.b);
@@ -816,6 +990,177 @@ const Editor = () => {
                     style={{ color: themeStyles.contentColor }}
                   >
                     {item}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      },
+
+      'image-left': () => (
+        <div className="w-full h-full flex p-12">
+          <div className="w-1/2 flex items-center justify-center pr-8">
+            {imageUrl ? (
+              <img 
+                src={imageUrl} 
+                alt="Slide visual" 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+              />
+            ) : (
+              <div 
+                className="w-64 h-64 rounded-lg flex items-center justify-center text-white/80"
+                style={{ backgroundColor: themeStyles.accentColor }}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-2xl">🖼️</span>
+                  </div>
+                  <p className="text-sm">Add Image</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="w-1/2 flex flex-col justify-center">
+            <h1 
+              className="text-4xl font-bold mb-6"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div 
+              className="text-lg leading-relaxed space-y-3"
+              style={{ color: themeStyles.contentColor }}
+            >
+              {currentSlide.content.split('\n').map((line, index) => (
+                <p key={index} className="flex items-start">
+                  {line.startsWith('• ') && (
+                    <span 
+                      className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0"
+                      style={{ backgroundColor: themeStyles.accentColor }}
+                    />
+                  )}
+                  <span>{line.replace('• ', '')}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      ),
+
+      'quote': () => (
+        <div className="w-full h-full flex flex-col justify-center items-center text-center p-16">
+          <div 
+            className="text-8xl mb-8 opacity-30"
+            style={{ color: themeStyles.accentColor }}
+          >
+            "
+          </div>
+          <h1 
+            className="text-3xl font-light italic mb-8 max-w-4xl leading-relaxed"
+            style={{ color: themeStyles.titleColor }}
+          >
+            {currentSlide.title}
+          </h1>
+          <div 
+            className="text-xl"
+            style={{ color: themeStyles.contentColor }}
+          >
+            {currentSlide.content.split('\n')[0]?.replace('• ', '')}
+          </div>
+        </div>
+      ),
+
+      'comparison': () => {
+        const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
+        const leftItems = contentLines.slice(0, 2).map(l => l.replace('• ', ''));
+        const rightItems = contentLines.slice(2, 4).map(l => l.replace('• ', ''));
+        
+        return (
+          <div className="w-full h-full p-12">
+            <h1 
+              className="text-4xl font-bold mb-12 text-center"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div className="flex gap-8 h-2/3">
+              <div 
+                className="flex-1 rounded-lg p-8"
+                style={{ backgroundColor: `${themeStyles.accentColor}15` }}
+              >
+                <h2 
+                  className="text-2xl font-semibold mb-6 text-center"
+                  style={{ color: themeStyles.accentColor }}
+                >
+                  Option A
+                </h2>
+                <div className="space-y-4">
+                  {leftItems.map((item, i) => (
+                    <p key={i} className="flex items-start" style={{ color: themeStyles.contentColor }}>
+                      <span className="w-2 h-2 rounded-full mr-3 mt-2" style={{ backgroundColor: themeStyles.accentColor }} />
+                      {item || `Point ${i + 1}`}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <div 
+                className="w-px"
+                style={{ backgroundColor: themeStyles.accentColor }}
+              />
+              <div 
+                className="flex-1 rounded-lg p-8"
+                style={{ backgroundColor: `${themeStyles.accentColor}15` }}
+              >
+                <h2 
+                  className="text-2xl font-semibold mb-6 text-center"
+                  style={{ color: themeStyles.accentColor }}
+                >
+                  Option B
+                </h2>
+                <div className="space-y-4">
+                  {rightItems.map((item, i) => (
+                    <p key={i} className="flex items-start" style={{ color: themeStyles.contentColor }}>
+                      <span className="w-2 h-2 rounded-full mr-3 mt-2" style={{ backgroundColor: themeStyles.accentColor }} />
+                      {item || `Point ${i + 1}`}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      },
+
+      'stats': () => {
+        const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
+        const stats = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        
+        return (
+          <div className="w-full h-full p-12">
+            <h1 
+              className="text-4xl font-bold mb-16 text-center"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div className="grid grid-cols-4 gap-6 h-1/2">
+              {stats.map((stat, index) => (
+                <div 
+                  key={index}
+                  className="flex flex-col items-center justify-center text-center"
+                >
+                  <div 
+                    className="text-5xl font-bold mb-4"
+                    style={{ color: themeStyles.accentColor }}
+                  >
+                    {['📈', '🎯', '💡', '🚀'][index]}
+                  </div>
+                  <p 
+                    className="text-lg font-medium"
+                    style={{ color: themeStyles.contentColor }}
+                  >
+                    {stat || `Stat ${index + 1}`}
                   </p>
                 </div>
               ))}
@@ -1030,6 +1375,89 @@ const Editor = () => {
                     ${idx + 1}
                   </div>
                   <p style="font-size: 1.2em; font-weight: 500; color: ${themeStyles.contentColor};">${item}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (layout === 'image-left') {
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; display: flex; padding: 60px;">
+            <div style="width: 50%; display: flex; align-items: center; justify-content: center; padding-right: 40px;">
+              ${imageUrl ? `<img src="${imageUrl}" alt="Visual" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);" />` : 
+                `<div style="width: 300px; height: 300px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; background: ${themeStyles.accentColor};">
+                  <div style="text-align: center;">
+                    <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2em;">🖼️</div>
+                    <p style="font-size: 1em;">Add Image</p>
+                  </div>
+                </div>`}
+            </div>
+            <div style="width: 50%; display: flex; flex-direction: column; justify-content: center;">
+              <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 30px; color: ${themeStyles.titleColor};">${slide.title}</h1>
+              <div style="font-size: 1.2em; line-height: 1.8; color: ${themeStyles.contentColor};">
+                ${contentLines.map(line => `
+                  <p style="display: flex; align-items: flex-start; margin: 15px 0;">
+                    ${line.startsWith('• ') ? `<span style="width: 10px; height: 10px; border-radius: 50%; background: ${themeStyles.accentColor}; margin-right: 15px; margin-top: 8px; flex-shrink: 0;"></span>` : ''}
+                    <span>${line.replace('• ', '')}</span>
+                  </p>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (layout === 'quote') {
+        const firstLine = contentLines[0]?.replace('• ', '') || '';
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 80px;">
+            <div style="font-size: 8em; opacity: 0.3; color: ${themeStyles.accentColor};">"</div>
+            <h1 style="font-size: 2em; font-weight: 300; font-style: italic; margin-bottom: 40px; max-width: 900px; line-height: 1.6; color: ${themeStyles.titleColor};">${slide.title}</h1>
+            <div style="font-size: 1.3em; color: ${themeStyles.contentColor};">${firstLine}</div>
+          </div>
+        `;
+      } else if (layout === 'comparison') {
+        const leftItems = contentLines.slice(0, 2).map(l => l.replace('• ', ''));
+        const rightItems = contentLines.slice(2, 4).map(l => l.replace('• ', ''));
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; padding: 60px;">
+            <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 60px; text-align: center; color: ${themeStyles.titleColor};">${slide.title}</h1>
+            <div style="display: flex; gap: 40px; height: 60%;">
+              <div style="flex: 1; border-radius: 10px; padding: 40px; background: ${themeStyles.accentColor}15;">
+                <h2 style="font-size: 1.5em; font-weight: 600; margin-bottom: 30px; text-align: center; color: ${themeStyles.accentColor};">Option A</h2>
+                <div style="color: ${themeStyles.contentColor};">
+                  ${leftItems.map((item, i) => `
+                    <p style="display: flex; align-items: flex-start; margin: 20px 0;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: ${themeStyles.accentColor}; margin-right: 12px; margin-top: 8px;"></span>
+                      ${item || `Point ${i + 1}`}
+                    </p>
+                  `).join('')}
+                </div>
+              </div>
+              <div style="width: 2px; background: ${themeStyles.accentColor};"></div>
+              <div style="flex: 1; border-radius: 10px; padding: 40px; background: ${themeStyles.accentColor}15;">
+                <h2 style="font-size: 1.5em; font-weight: 600; margin-bottom: 30px; text-align: center; color: ${themeStyles.accentColor};">Option B</h2>
+                <div style="color: ${themeStyles.contentColor};">
+                  ${rightItems.map((item, i) => `
+                    <p style="display: flex; align-items: flex-start; margin: 20px 0;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: ${themeStyles.accentColor}; margin-right: 12px; margin-top: 8px;"></span>
+                      ${item || `Point ${i + 1}`}
+                    </p>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (layout === 'stats') {
+        const stats = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        const icons = ['📈', '🎯', '💡', '🚀'];
+        layoutHtml = `
+          <div style="width: 100%; height: 100%; padding: 60px;">
+            <h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 80px; text-align: center; color: ${themeStyles.titleColor};">${slide.title}</h1>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; height: 40%;">
+              ${stats.map((stat, i) => `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+                  <div style="font-size: 4em; margin-bottom: 20px;">${icons[i]}</div>
+                  <p style="font-size: 1.2em; font-weight: 500; color: ${themeStyles.contentColor};">${stat || `Stat ${i + 1}`}</p>
                 </div>
               `).join('')}
             </div>
@@ -1440,6 +1868,16 @@ const Editor = () => {
                     <Wand2 className="w-3 h-3 mr-1" />
                     Technical
                   </Button>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={() => refineSlide('regenerate-bullets')}
+                    disabled={isLoading}
+                    className="col-span-2 bg-gradient-to-r from-primary to-accent"
+                  >
+                    <Wand2 className="w-3 h-3 mr-1" />
+                    Regenerate 4 Bullets
+                  </Button>
                 </div>
               </div>
 
@@ -1558,6 +1996,10 @@ const Editor = () => {
                     <SelectItem value="hero">Hero Layout</SelectItem>
                     <SelectItem value="two-column">Two Column</SelectItem>
                     <SelectItem value="grid">Grid Layout (4 items)</SelectItem>
+                    <SelectItem value="image-left">Image Left</SelectItem>
+                    <SelectItem value="quote">Quote / Statement</SelectItem>
+                    <SelectItem value="comparison">Comparison (2 sides)</SelectItem>
+                    <SelectItem value="stats">Stats / Numbers</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
