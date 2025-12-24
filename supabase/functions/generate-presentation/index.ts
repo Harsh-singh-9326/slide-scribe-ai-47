@@ -265,6 +265,26 @@ Return ONLY valid JSON, no additional text.`;
       const jsonMatch = geminiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         generatedContent = JSON.parse(jsonMatch[0]);
+
+        // Normalize bullet count to exactly 4 per slide
+        if (generatedContent?.slides && Array.isArray(generatedContent.slides)) {
+          generatedContent.slides = generatedContent.slides.map((s: any, idx: number) => {
+            let bullets = Array.isArray(s?.content_bullets)
+              ? s.content_bullets.filter((b: any) => typeof b === "string" && b.trim().length > 0)
+              : [];
+
+            while (bullets.length < 4) {
+              bullets.push(`Key point ${bullets.length + 1}`);
+            }
+            if (bullets.length > 4) bullets = bullets.slice(0, 4);
+
+            return {
+              ...s,
+              slide_title: typeof s?.slide_title === "string" ? s.slide_title : `Slide ${idx + 1}`,
+              content_bullets: bullets,
+            };
+          });
+        }
       } else {
         throw new Error('No JSON found in response');
       }
@@ -350,7 +370,9 @@ Return ONLY valid JSON, no additional text.`;
     const slides = enhancedSlides.map((slide: any, index: number) => ({
       presentation_id: presentation.id,
       title: slide.slide_title,
-      content: slide.content_bullets ? slide.content_bullets.join('\n• ') : slide.content || '',
+      content: Array.isArray(slide.content_bullets)
+        ? slide.content_bullets.map((b: string) => `• ${String(b).trim()}`).join('\n')
+        : (slide.content || ''),
       notes: slide.speaker_notes || '',
       slide_order: index + 1,
       layout: slide.design_suggestion?.layout || 'title-content'

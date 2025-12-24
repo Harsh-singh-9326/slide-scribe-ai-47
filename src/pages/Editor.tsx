@@ -53,6 +53,8 @@ const Editor = () => {
   const [currentTheme, setCurrentTheme] = useState('modern');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [draggingSlideIndex, setDraggingSlideIndex] = useState<number | null>(null);
+  const [dragOverSlideIndex, setDragOverSlideIndex] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [presentation, setPresentation] = useState<any>(null);
   const [slides, setSlides] = useState<Slide[]>([
@@ -95,6 +97,24 @@ const Editor = () => {
         setSelectedSlide(newSlides.length - 1);
       }
     }
+  };
+
+  const moveSlide = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+
+    setSlides((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+
+    setSelectedSlide((prev) => {
+      if (prev === fromIndex) return toIndex;
+      if (fromIndex < toIndex && prev > fromIndex && prev <= toIndex) return prev - 1;
+      if (toIndex < fromIndex && prev >= toIndex && prev < fromIndex) return prev + 1;
+      return prev;
+    });
   };
 
   const updateSlide = (field: 'title' | 'content' | 'notes' | 'layout' | 'theme', value: string) => {
@@ -322,6 +342,28 @@ const Editor = () => {
     }
   };
 
+  const downloadSpeakerNotes = (presentationTitle: string, slidesData: Slide[]) => {
+    const safeTitle = String(presentationTitle || "speaker-notes").replace(/[^a-z0-9]+/gi, "_");
+
+    const body = slidesData
+      .map((s, i) => {
+        const notes = String(s.notes || "").trim() || "(no speaker notes)";
+        const title = String(s.title || "Untitled").trim();
+        return `Slide ${i + 1}: ${title}\n${notes}`;
+      })
+      .join("\n\n---\n\n");
+
+    const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeTitle}_speaker_notes.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async (format: 'pptx' | 'pdf') => {
     try {
       await trackAnalytics('download');
@@ -472,7 +514,9 @@ const Editor = () => {
           });
         });
       }
-      
+
+      pptxSlide.addNotes(String(slide.notes || ''));
+
       pptxSlide.addText(String(`${index + 1} / ${slidesData.length}`), {
         x: 9, y: 6.8, w: 0.8, h: 0.3,
         fontSize: 10, align: 'right', color: titleColor
@@ -918,12 +962,15 @@ const Editor = () => {
     const previewContent = slides.map((slide, index) => {
       const layout = slide.layout || 'title-content';
       const imageUrl = slide.design_suggestion?.image_url;
-      const themeStyles = slide.design_suggestion?.style ? {
-        background: slide.design_suggestion.style.background_color || '#ffffff',
-        titleColor: slide.design_suggestion.style.primary_color || '#2c3e50',
-        contentColor: slide.design_suggestion.style.secondary_color || '#7f8c8d',
-        accentColor: slide.design_suggestion.style.accent_color || '#667eea'
-      } : getThemeStylesForTheme(currentTheme);
+      const manualTheme = slide.theme || currentTheme;
+      const shouldUseAiStyle = !slide.theme && currentTheme === 'modern' && !!slide.design_suggestion?.style;
+
+      const themeStyles = shouldUseAiStyle ? {
+        background: slide.design_suggestion!.style!.background_color || '#ffffff',
+        titleColor: slide.design_suggestion!.style!.primary_color || '#2c3e50',
+        contentColor: slide.design_suggestion!.style!.secondary_color || '#7f8c8d',
+        accentColor: slide.design_suggestion!.style!.accent_color || '#667eea'
+      } : getThemeStylesForTheme(manualTheme);
 
       const contentLines = slide.content.split('\n').filter(line => line.trim());
 
@@ -1103,6 +1150,9 @@ const Editor = () => {
                         <SelectItem value="professional">Professional - Dark blue</SelectItem>
                         <SelectItem value="creative">Creative - Pink gradient</SelectItem>
                         <SelectItem value="minimal">Minimal - Clean white</SelectItem>
+                        <SelectItem value="vibrant">Vibrant - Dark with colors</SelectItem>
+                        <SelectItem value="corporate">Corporate - Light blue</SelectItem>
+                        <SelectItem value="dark">Dark - High contrast</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1149,6 +1199,21 @@ const Editor = () => {
                       <Download className="w-4 h-4 mr-2" />
                       Export as PDF
                     </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={async () => {
+                        await trackAnalytics('download');
+                        downloadSpeakerNotes(presentation?.title || "Presentation", slides);
+                        toast({
+                          title: "Downloaded",
+                          description: "Speaker notes file has been downloaded",
+                        });
+                      }}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Speaker Notes
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -1171,44 +1236,76 @@ const Editor = () => {
               Add Slide
             </Button>
             
-            <div className="space-y-2">
-              {slides.map((slide, index) => (
-                <div
-                  key={slide.id}
-                  onClick={() => setSelectedSlide(index)}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors group ${
-                    selectedSlide === index 
-                      ? 'border-primary bg-primary/10' 
-                      : 'border-muted hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        Slide {index + 1}
+              <div className="space-y-2">
+                {slides.map((slide, index) => (
+                  <div
+                    key={slide.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggingSlideIndex(index);
+                      setDragOverSlideIndex(null);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', String(index));
+                    }}
+                    onDragEnd={() => {
+                      setDraggingSlideIndex(null);
+                      setDragOverSlideIndex(null);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggingSlideIndex !== null && draggingSlideIndex !== index) {
+                        setDragOverSlideIndex(index);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverSlideIndex === index) setDragOverSlideIndex(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggingSlideIndex === null || draggingSlideIndex === index) return;
+                      moveSlide(draggingSlideIndex, index);
+                      setDraggingSlideIndex(null);
+                      setDragOverSlideIndex(null);
+                    }}
+                    onClick={() => setSelectedSlide(index)}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors group ${
+                      selectedSlide === index 
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-muted hover:border-muted-foreground/50'
+                    } ${
+                      dragOverSlideIndex === index && draggingSlideIndex !== null && draggingSlideIndex !== index
+                        ? 'ring-2 ring-primary/40'
+                        : ''
+                    } ${draggingSlideIndex === index ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-muted-foreground mb-1 flex items-center gap-2">
+                          <span>Slide {index + 1}</span>
+                          <Move className="w-3 h-3 opacity-0 group-hover:opacity-70 transition-opacity" />
+                        </div>
+                        <div className="text-sm font-medium truncate">
+                          {slide.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {slide.content.substring(0, 60)}...
+                        </div>
                       </div>
-                      <div className="text-sm font-medium truncate">
-                        {slide.title}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {slide.content.substring(0, 60)}...
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSlide(index);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSlide(index);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
           </div>
         </div>
 
