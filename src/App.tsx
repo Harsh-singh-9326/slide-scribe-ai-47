@@ -11,6 +11,7 @@ import Pricing from "./pages/Pricing";
 import Payment from "./pages/Payment";
 import Auth from "./pages/Auth";
 import Analytics from "./pages/Analytics";
+import PresentationMode from "./pages/PresentationMode";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/payment" element={<Payment />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<Auth />} />
+          <Route path="/present" element={<PresentationMode />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
