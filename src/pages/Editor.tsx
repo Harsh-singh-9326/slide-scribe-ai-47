@@ -5,26 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { 
   Download, 
   Plus, 
   Trash2, 
   Move, 
   Palette, 
-  Type, 
   Save,
   ArrowLeft,
   Eye,
   Wand2,
   ChevronLeft,
   ChevronRight,
-  Keyboard
+  Keyboard,
+  Play
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { ImageManager } from "@/components/ImageManager";
-import { PresentationTimer } from "@/components/PresentationTimer";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1580,6 +1578,16 @@ const Editor = () => {
     return `${Math.floor(seconds / 86400)} days ago`;
   };
 
+  const openPracticeMode = () => {
+    const presentationData = {
+      slides: slides,
+      theme: currentTheme,
+      title: presentation?.title || 'Presentation'
+    };
+    const encodedData = encodeURIComponent(JSON.stringify(presentationData));
+    window.open(`/present?data=${encodedData}`, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -1604,6 +1612,16 @@ const Editor = () => {
             </div>
             
             <div className="flex items-center space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={openPracticeMode}
+                className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:text-green-800"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Practice Mode
+              </Button>
+              
               <Button variant="outline" size="sm" onClick={handlePreview}>
                 <Eye className="w-4 h-4 mr-2" />
                 Preview
@@ -1826,31 +1844,9 @@ const Editor = () => {
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mb-4">
-                <Progress 
-                  value={((selectedSlide + 1) / slides.length) * 100} 
-                  className="h-2"
-                />
-                <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                  <span>Start</span>
-                  <span>{Math.round(((selectedSlide + 1) / slides.length) * 100)}% complete</span>
-                  <span>End</span>
-                </div>
-              </div>
-
               {/* Slide Preview with Transitions */}
               <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 {renderSlidePreview()}
-              </div>
-
-              {/* Presentation Timer */}
-              <div className="mb-6">
-                <PresentationTimer
-                  currentSlide={selectedSlide}
-                  slideTitle={slides[selectedSlide]?.title || ''}
-                  totalSlides={slides.length}
-                />
               </div>
 
               {/* Global Theme Selector */}
