@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { 
   Download, 
   Plus, 
@@ -17,14 +18,17 @@ import {
   Eye,
   Wand2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Keyboard
 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import { ImageManager } from "@/components/ImageManager";
+import { PresentationTimer } from "@/components/PresentationTimer";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface Slide {
   id: string;
@@ -50,6 +54,9 @@ const Editor = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [selectedSlide, setSelectedSlide] = useState(0);
+  const [previousSlide, setPreviousSlide] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('modern');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,15 +85,59 @@ const Editor = () => {
     }
   ]);
 
+  // Smooth slide navigation with transitions
+  const navigateToSlide = useCallback((newIndex: number) => {
+    if (newIndex < 0 || newIndex >= slides.length || newIndex === selectedSlide || isTransitioning) return;
+    
+    setSlideDirection(newIndex > selectedSlide ? 'right' : 'left');
+    setPreviousSlide(selectedSlide);
+    setIsTransitioning(true);
+    
+    // Short delay for exit animation
+    setTimeout(() => {
+      setSelectedSlide(newIndex);
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 300);
+    }, 150);
+  }, [selectedSlide, slides.length, isTransitioning]);
+
+  const nextSlide = useCallback(() => {
+    navigateToSlide(selectedSlide + 1);
+  }, [navigateToSlide, selectedSlide]);
+
+  const prevSlide = useCallback(() => {
+    navigateToSlide(selectedSlide - 1);
+  }, [navigateToSlide, selectedSlide]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        prevSlide();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [nextSlide, prevSlide]);
+
   const addSlide = () => {
     const newSlide = {
-      id: Date.now().toString(), // Use timestamp string for unique ID
+      id: Date.now().toString(),
       title: "New Slide Title",
       content: "Enter your slide content here...",
       notes: "Add speaker notes for this slide."
     };
     setSlides([...slides, newSlide]);
-    setSelectedSlide(slides.length);
+    navigateToSlide(slides.length);
   };
 
   const deleteSlide = (slideIndex: number) => {
@@ -1174,7 +1225,11 @@ const Editor = () => {
     
     return (
       <div 
-        className="w-full h-full relative"
+        className={cn(
+          "w-full h-full relative transition-all duration-300",
+          isTransitioning && slideDirection === 'right' && "animate-slide-in-right",
+          isTransitioning && slideDirection === 'left' && "animate-slide-in-left"
+        )}
         style={{ background: themeStyles.background }}
       >
         <LayoutComponent />
@@ -1695,7 +1750,7 @@ const Editor = () => {
                       setDraggingSlideIndex(null);
                       setDragOverSlideIndex(null);
                     }}
-                    onClick={() => setSelectedSlide(index)}
+                    onClick={() => navigateToSlide(index)}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors group ${
                       selectedSlide === index 
                         ? 'border-primary bg-primary/10' 
@@ -1748,8 +1803,8 @@ const Editor = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setSelectedSlide(Math.max(0, selectedSlide - 1))}
-                    disabled={selectedSlide === 0}
+                    onClick={prevSlide}
+                    disabled={selectedSlide === 0 || isTransitioning}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -1759,17 +1814,43 @@ const Editor = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => setSelectedSlide(Math.min(slides.length - 1, selectedSlide + 1))}
-                    disabled={selectedSlide === slides.length - 1}
+                    onClick={nextSlide}
+                    disabled={selectedSlide === slides.length - 1 || isTransitioning}
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Keyboard className="w-4 h-4" />
+                  <span>Use arrow keys to navigate</span>
+                </div>
               </div>
 
-              {/* Slide Preview */}
-              <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6 transform transition-transform">
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <Progress 
+                  value={((selectedSlide + 1) / slides.length) * 100} 
+                  className="h-2"
+                />
+                <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                  <span>Start</span>
+                  <span>{Math.round(((selectedSlide + 1) / slides.length) * 100)}% complete</span>
+                  <span>End</span>
+                </div>
+              </div>
+
+              {/* Slide Preview with Transitions */}
+              <div className="aspect-[16/9] bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 {renderSlidePreview()}
+              </div>
+
+              {/* Presentation Timer */}
+              <div className="mb-6">
+                <PresentationTimer
+                  currentSlide={selectedSlide}
+                  slideTitle={slides[selectedSlide]?.title || ''}
+                  totalSlides={slides.length}
+                />
               </div>
 
               {/* Global Theme Selector */}
