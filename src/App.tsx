@@ -12,6 +12,9 @@ import Payment from "./pages/Payment";
 import Auth from "./pages/Auth";
 import Analytics from "./pages/Analytics";
 import PresentationMode from "./pages/PresentationMode";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,7 +36,9 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<Auth />} />
           <Route path="/present" element={<PresentationMode />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/cookies" element={<CookiePolicy />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

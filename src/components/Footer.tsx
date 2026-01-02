@@ -79,13 +79,13 @@ export const Footer = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Link to="#" className="block text-muted-foreground hover:text-primary transition-colors">
+              <Link to="/privacy" className="block text-muted-foreground hover:text-primary transition-colors">
                 Privacy Policy
               </Link>
-              <Link to="#" className="block text-muted-foreground hover:text-primary transition-colors">
+              <Link to="/terms" className="block text-muted-foreground hover:text-primary transition-colors">
                 Terms of Service
               </Link>
-              <Link to="#" className="block text-muted-foreground hover:text-primary transition-colors">
+              <Link to="/cookies" className="block text-muted-foreground hover:text-primary transition-colors">
                 Cookie Policy
               </Link>
             </div>
