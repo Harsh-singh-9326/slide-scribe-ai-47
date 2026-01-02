@@ -12,9 +12,11 @@ import {
   Minimize,
   Clock,
   Flag,
-  FileText
+  FileText,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EnhancedSpeakerNotes } from "@/components/EnhancedSpeakerNotes";
 
 interface Slide {
   id: string;
@@ -516,16 +518,14 @@ const PresentationMode = () => {
         </div>
       )}
 
-      {/* Speaker Notes Panel */}
-      {showNotes && slides[currentSlide]?.notes && (
-        <div className="absolute bottom-32 left-4 z-10 bg-black/80 text-white p-4 rounded-xl max-w-md backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-2 text-sm font-medium text-white/70">
-            <FileText className="w-4 h-4" />
-            Speaker Notes
-          </div>
-          <p className="text-sm leading-relaxed">{slides[currentSlide].notes}</p>
-        </div>
-      )}
+      {/* Enhanced Speaker Notes Panel */}
+      <EnhancedSpeakerNotes
+        slideTitle={slides[currentSlide]?.title || ''}
+        slideContent={slides[currentSlide]?.content || ''}
+        notes={slides[currentSlide]?.notes}
+        isVisible={showNotes}
+        onClose={() => setShowNotes(false)}
+      />
 
       {/* Slide Laps Panel */}
       {showControls && slideLaps.length > 0 && (
