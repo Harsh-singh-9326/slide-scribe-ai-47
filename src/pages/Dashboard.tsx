@@ -483,32 +483,32 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">Loading presentations...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {presentations.map((presentation) => (
                   <Card
                     key={presentation.id}
                     className="overflow-hidden hover:shadow-lg transition-all cursor-pointer group"
                     onClick={() => navigate(`/editor/${presentation.id}`)}
                   >
-                    {/* Preview Section - Better aspect ratio for full content */}
-                    <div className="aspect-[16/9] bg-gradient-to-br from-muted/50 to-muted p-6 flex flex-col justify-between border-b">
-                      <div className="space-y-3">
+                    {/* Compact Preview Section */}
+                    <div className="aspect-[4/3] bg-gradient-to-br from-muted/50 to-muted p-4 flex flex-col justify-between border-b">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="p-2 bg-gradient-to-br from-primary to-accent rounded-lg">
-                            <FileText className="w-5 h-5 text-primary-foreground" />
+                          <div className="p-1.5 bg-gradient-to-br from-primary to-accent rounded-md">
+                            <FileText className="w-4 h-4 text-primary-foreground" />
                           </div>
-                          <span className="text-xs text-muted-foreground capitalize px-3 py-1 bg-background/80 rounded-full">
+                          <span className="text-[10px] text-muted-foreground capitalize px-2 py-0.5 bg-background/80 rounded-full">
                             {presentation.theme}
                           </span>
                         </div>
-                        <div className="space-y-2">
-                          <h3 className="font-bold text-lg line-clamp-2">{presentation.title}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-4">
-                            {presentation.description || "AI-generated presentation content with beautiful layouts and themes."}
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-sm line-clamp-2">{presentation.title}</h3>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {presentation.description || "AI-generated presentation"}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                         <span className="flex items-center">
                           <Calendar className="w-3 h-3 mr-1" />
                           {new Date(presentation.created_at).toLocaleDateString()}
@@ -517,13 +517,13 @@ const Dashboard = () => {
                       </div>
                     </div>
 
-                    {/* Actions Section */}
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2">
+                    {/* Compact Actions Section */}
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-1.5">
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={(e) => handleDownload(presentation.id, 'pptx', e)}
                         >
                           <Download className="w-3 h-3 mr-1" />
@@ -532,7 +532,7 @@ const Dashboard = () => {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="flex-1"
+                          className="flex-1 h-8 text-xs"
                           onClick={(e) => handleDownload(presentation.id, 'pdf', e)}
                         >
                           <Download className="w-3 h-3 mr-1" />
@@ -541,6 +541,7 @@ const Dashboard = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
+                          className="h-8 text-xs px-2"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/editor/${presentation.id}`);
@@ -553,10 +554,10 @@ const Dashboard = () => {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              className="text-destructive hover:text-destructive"
+                              className="h-8 text-destructive hover:text-destructive px-2"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
