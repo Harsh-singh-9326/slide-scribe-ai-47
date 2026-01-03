@@ -18,7 +18,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const prompt = `You are a presentation coach helping a speaker prepare for their talk. Analyze this slide and provide helpful speaking guidance.
+    const prompt = `You are a presentation coach helping a speaker prepare for their talk. Analyze this slide and provide helpful speaking guidance including exactly what to say.
 
 Slide Title: ${slideTitle}
 Slide Content: ${slideContent}
@@ -27,13 +27,14 @@ ${existingNotes ? `Existing Notes: ${existingNotes}` : ''}
 Provide a JSON response with EXACTLY this structure:
 {
   "expandedNotes": "Detailed speaker notes explaining how to present this slide effectively (2-3 sentences)",
+  "speakingScript": "A natural, conversational script of exactly what the speaker should say when presenting this slide. Write it as if you're the speaker talking to the audience. Include an opening, explanation of key points, and closing. Make it 3-5 sentences that sound natural when spoken aloud.",
   "keyTalkingPoints": ["4 specific talking points to cover when presenting this slide"],
   "suggestedQuestions": ["4 engaging questions the speaker could ask the audience about this topic"],
   "youtubeSearchTerms": ["4 YouTube search terms to find relevant educational videos on this topic"],
   "transitionTip": "A tip for transitioning to the next slide smoothly"
 }
 
-Make the content specific to the slide topic, professional, and actionable. Focus on helping the speaker engage their audience effectively.`;
+Make the speakingScript sound natural and conversational - as if the speaker is actually presenting. Include phrases like "Let me explain...", "As you can see...", "The key takeaway here is...". Focus on helping the speaker engage their audience effectively.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -71,6 +72,7 @@ Make the content specific to the slide topic, professional, and actionable. Focu
       // Return fallback
       enhancement = {
         expandedNotes: existingNotes || `Focus on clearly explaining ${slideTitle} to your audience with relatable examples.`,
+        speakingScript: `"Let me walk you through ${slideTitle}. ${existingNotes || 'This is a key topic I want to highlight for you today.'} As you can see on the slide, we have some important points to cover. Let me break this down step by step so it's crystal clear."`,
         keyTalkingPoints: [
           `Introduce the main concept of ${slideTitle}`,
           "Provide a real-world example or case study",
