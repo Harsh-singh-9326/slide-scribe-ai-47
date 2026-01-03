@@ -13,10 +13,13 @@ import {
   Clock,
   Flag,
   FileText,
-  Sparkles
+  Sparkles,
+  Download,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EnhancedSpeakerNotes } from "@/components/EnhancedSpeakerNotes";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Slide {
   id: string;
@@ -55,6 +58,8 @@ const PresentationMode = () => {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [slideStartTime, setSlideStartTime] = useState(0);
   const [slideLaps, setSlideLaps] = useState<SlideLap[]>([]);
+  const [presentationTitle, setPresentationTitle] = useState('');
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
   // Load presentation data from URL params or localStorage
   useEffect(() => {
@@ -66,11 +71,213 @@ const PresentationMode = () => {
         const parsed = JSON.parse(decodeURIComponent(presentationData));
         setSlides(parsed.slides || []);
         setGlobalTheme(parsed.theme || 'modern');
+        setPresentationTitle(parsed.title || 'Presentation');
       } catch (e) {
         console.error('Failed to parse presentation data');
       }
     }
   }, []);
+
+  // Generate full presentation script
+  const downloadFullScript = async (format: 'txt' | 'pdf') => {
+    if (slides.length === 0) return;
+    
+    setIsGeneratingScript(true);
+    
+    try {
+      // Generate scripts for all slides
+      const allScripts: Array<{
+        slideNumber: number;
+        title: string;
+        content: string;
+        script: string;
+        talkingPoints: string[];
+        questions: string[];
+        transitionTip: string;
+      }> = [];
+
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i];
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('enhance-speaker-notes', {
+            body: { 
+              slideTitle: slide.title, 
+              slideContent: slide.content,
+              existingNotes: slide.notes 
+            }
+          });
+
+          if (error) throw error;
+          
+          allScripts.push({
+            slideNumber: i + 1,
+            title: slide.title,
+            content: slide.content,
+            script: data?.speakingScript || `Present the key points of ${slide.title} to your audience.`,
+            talkingPoints: data?.keyTalkingPoints || [],
+            questions: data?.suggestedQuestions || [],
+            transitionTip: data?.transitionTip || 'Pause briefly before moving to the next slide.'
+          });
+        } catch (err) {
+          // Fallback for failed API calls
+          allScripts.push({
+            slideNumber: i + 1,
+            title: slide.title,
+            content: slide.content,
+            script: `"Let me walk you through ${slide.title}. ${slide.notes || 'This is an important topic to cover.'}"`,
+            talkingPoints: ['Introduce the main concept', 'Provide examples', 'Summarize key takeaways'],
+            questions: ['Any questions about this topic?'],
+            transitionTip: 'Pause briefly before moving to the next slide.'
+          });
+        }
+      }
+
+      const safeTitle = (presentationTitle || 'presentation').replace(/[^a-z0-9]+/gi, '_');
+
+      if (format === 'txt') {
+        let content = `${'═'.repeat(60)}\n`;
+        content += `FULL PRESENTATION SPEAKER SCRIPT\n`;
+        content += `${'═'.repeat(60)}\n\n`;
+        content += `Presentation: ${presentationTitle}\n`;
+        content += `Total Slides: ${slides.length}\n`;
+        content += `Generated: ${new Date().toLocaleDateString()}\n\n`;
+        content += `${'═'.repeat(60)}\n\n`;
+
+        allScripts.forEach((item, index) => {
+          content += `${'─'.repeat(50)}\n`;
+          content += `SLIDE ${item.slideNumber}: ${item.title}\n`;
+          content += `${'─'.repeat(50)}\n\n`;
+          
+          content += `📜 WHAT TO SAY:\n`;
+          content += `${item.script}\n\n`;
+          
+          content += `🎯 KEY TALKING POINTS:\n`;
+          item.talkingPoints.forEach((point, i) => {
+            content += `   ${i + 1}. ${point}\n`;
+          });
+          content += '\n';
+          
+          content += `❓ AUDIENCE QUESTIONS:\n`;
+          item.questions.forEach((q, i) => {
+            content += `   Q${i + 1}: "${q}"\n`;
+          });
+          content += '\n';
+          
+          content += `💡 TRANSITION: ${item.transitionTip}\n\n`;
+          
+          if (index < allScripts.length - 1) {
+            content += '\n';
+          }
+        });
+
+        content += `\n${'═'.repeat(60)}\n`;
+        content += `END OF SCRIPT\n`;
+        content += `${'═'.repeat(60)}\n`;
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${safeTitle}_full_script.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } else {
+        // PDF download
+        const { default: jsPDF } = await import('jspdf');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const margin = 20;
+        const pageWidth = 210 - margin * 2;
+        let y = margin;
+
+        const addNewPageIfNeeded = (requiredSpace: number) => {
+          if (y + requiredSpace > 280) {
+            pdf.addPage();
+            y = margin;
+          }
+        };
+
+        // Title page
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('PRESENTATION SCRIPT', margin, y);
+        y += 15;
+
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(presentationTitle, margin, y);
+        y += 10;
+
+        pdf.setFontSize(11);
+        pdf.text(`${slides.length} Slides | Generated: ${new Date().toLocaleDateString()}`, margin, y);
+        y += 20;
+
+        // Add each slide's script
+        allScripts.forEach((item, index) => {
+          addNewPageIfNeeded(60);
+
+          // Slide header
+          pdf.setFontSize(14);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(100, 100, 100);
+          pdf.text(`SLIDE ${item.slideNumber}`, margin, y);
+          y += 6;
+
+          pdf.setFontSize(16);
+          pdf.setTextColor(0, 0, 0);
+          const titleLines = pdf.splitTextToSize(item.title, pageWidth);
+          pdf.text(titleLines, margin, y);
+          y += titleLines.length * 7 + 5;
+
+          // Speaking script
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('What to Say:', margin, y);
+          y += 6;
+
+          pdf.setFontSize(11);
+          pdf.setFont('helvetica', 'italic');
+          const scriptLines = pdf.splitTextToSize(item.script, pageWidth);
+          addNewPageIfNeeded(scriptLines.length * 5);
+          pdf.text(scriptLines, margin, y);
+          y += scriptLines.length * 5 + 8;
+
+          // Talking points
+          addNewPageIfNeeded(30);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Key Points:', margin, y);
+          y += 6;
+
+          pdf.setFont('helvetica', 'normal');
+          item.talkingPoints.forEach((point, i) => {
+            const pointLines = pdf.splitTextToSize(`${i + 1}. ${point}`, pageWidth - 5);
+            addNewPageIfNeeded(pointLines.length * 5);
+            pdf.text(pointLines, margin + 5, y);
+            y += pointLines.length * 5;
+          });
+          y += 5;
+
+          // Transition tip
+          addNewPageIfNeeded(15);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text('Transition:', margin, y);
+          y += 6;
+          pdf.setFont('helvetica', 'normal');
+          const tipLines = pdf.splitTextToSize(item.transitionTip, pageWidth);
+          pdf.text(tipLines, margin, y);
+          y += tipLines.length * 5 + 15;
+        });
+
+        pdf.save(`${safeTitle}_full_script.pdf`);
+      }
+    } catch (error) {
+      console.error('Error generating full script:', error);
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  };
 
   // Timer tick
   useEffect(() => {
@@ -480,7 +687,7 @@ const PresentationMode = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex justify-center gap-2 mt-4">
+            <div className="flex justify-center gap-2 mt-4 flex-wrap">
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -489,6 +696,34 @@ const PresentationMode = () => {
               >
                 <FileText className="w-4 h-4 mr-2" />
                 {showNotes ? 'Hide' : 'Show'} Notes (N)
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => downloadFullScript('txt')}
+                disabled={isGeneratingScript}
+                className="text-white/70 hover:text-white hover:bg-white/20"
+              >
+                {isGeneratingScript ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Full Script TXT
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => downloadFullScript('pdf')}
+                disabled={isGeneratingScript}
+                className="text-white/70 hover:text-white hover:bg-white/20"
+              >
+                {isGeneratingScript ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Full Script PDF
               </Button>
               <Button 
                 variant="ghost" 
@@ -525,6 +760,7 @@ const PresentationMode = () => {
         notes={slides[currentSlide]?.notes}
         isVisible={showNotes}
         onClose={() => setShowNotes(false)}
+        presentationTitle={presentationTitle}
       />
 
       {/* Slide Laps Panel */}
