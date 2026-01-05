@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend, ComposedChart } from "recharts";
-import { Download, Eye, Edit, TrendingUp, Calendar, Clock, Target, Award, ArrowUp, ArrowDown, ChevronRight, FileText, Sparkles, Users, Zap, BarChart2, Activity, AlertCircle, CheckCircle2, Lightbulb, Timer, Layers, MousePointer, Share2, Star, Trophy, Flame, TrendingDown, RefreshCw } from "lucide-react";
+import { Download, Eye, Edit, TrendingUp, Calendar, Clock, Target, Award, ArrowUp, ArrowDown, ChevronRight, FileText, Sparkles, Users, Zap, BarChart2, Activity, AlertCircle, CheckCircle2, Lightbulb, Timer, Layers, MousePointer, Share2, Star, Trophy, Flame, TrendingDown, RefreshCw, FileDown } from "lucide-react";
 import Header from "@/components/Header";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 interface PresentationStats {
   id: string;
@@ -405,6 +408,240 @@ const Analytics = () => {
     return 'Needs Improvement';
   };
 
+  // Export to CSV
+  const exportToCSV = () => {
+    try {
+      const headers = ['Title', 'Views', 'Downloads', 'Engagement Rate', 'Theme', 'Slides', 'Created Date'];
+      const rows = presentations.map(p => [
+        `"${p.title.replace(/"/g, '""')}"`,
+        p.view_count || 0,
+        p.download_count || 0,
+        p.view_count ? ((p.download_count || 0) / p.view_count * 100).toFixed(1) + '%' : '0%',
+        p.theme || 'modern',
+        p.slide_count || 0,
+        new Date(p.created_at).toLocaleDateString()
+      ]);
+
+      // Add summary section
+      const summary = [
+        '',
+        'Summary Statistics',
+        `Total Presentations,${metrics.presentationCount}`,
+        `Total Views,${metrics.totalViews}`,
+        `Total Downloads,${metrics.totalDownloads}`,
+        `Average Engagement Rate,${metrics.engagementRate}%`,
+        `Average Slides per Presentation,${metrics.avgSlidesPerPresentation}`,
+        `Performance Score,${Math.round(performanceScore.overall)}/100`,
+        '',
+        'Performance by Theme',
+        'Theme,Count,Views,Downloads,Avg Views'
+      ];
+
+      const themeRows = themeDistribution.map(t => 
+        `${t.name},${t.count},${t.views},${t.downloads},${t.avgViews}`
+      );
+
+      const csvContent = [
+        'Presentation Analytics Report',
+        `Generated: ${new Date().toLocaleString()}`,
+        `Date Range: ${dateRange === 'all' ? 'All Time' : `Last ${dateRange.replace('d', ' Days')}`}`,
+        '',
+        headers.join(','),
+        ...rows.map(r => r.join(',')),
+        ...summary,
+        ...themeRows
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analytics-report-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('CSV report downloaded successfully!');
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast.error('Failed to export CSV');
+    }
+  };
+
+  // Export to PDF
+  const exportToPDF = () => {
+    try {
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      let y = 20;
+
+      // Title
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Analytics Report', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, y, { align: 'center' });
+      y += 5;
+      pdf.text(`Date Range: ${dateRange === 'all' ? 'All Time' : `Last ${dateRange.replace('d', ' Days')}`}`, pageWidth / 2, y, { align: 'center' });
+      y += 15;
+
+      // Performance Score Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Performance Score', 20, y);
+      y += 8;
+
+      pdf.setFontSize(24);
+      pdf.text(`${Math.round(performanceScore.overall)}/100`, 20, y);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`(${getScoreLabel(performanceScore.overall)})`, 55, y);
+      y += 10;
+
+      const scoreItems = [
+        { label: 'Engagement', value: performanceScore.engagement },
+        { label: 'Reach', value: performanceScore.reach },
+        { label: 'Activity', value: performanceScore.activity },
+        { label: 'Quality', value: performanceScore.quality }
+      ];
+
+      scoreItems.forEach((item, i) => {
+        pdf.text(`${item.label}: ${Math.round(item.value)}/100`, 20 + (i * 45), y);
+      });
+      y += 15;
+
+      // Key Metrics Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Key Metrics', 20, y);
+      y += 10;
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      const metricsData = [
+        ['Total Presentations', metrics.presentationCount.toString()],
+        ['Total Views', metrics.totalViews.toString()],
+        ['Total Downloads', metrics.totalDownloads.toString()],
+        ['Engagement Rate', `${metrics.engagementRate}%`],
+        ['Total Slides', metrics.totalSlides.toString()],
+        ['Avg Slides/Presentation', metrics.avgSlidesPerPresentation],
+        ['Avg Views/Presentation', metrics.avgViewsPerPresentation],
+        ['Avg Downloads/Presentation', metrics.avgDownloadsPerPresentation]
+      ];
+
+      metricsData.forEach(([label, value], i) => {
+        const col = i % 2;
+        if (i > 0 && col === 0) y += 6;
+        pdf.text(`${label}: ${value}`, 20 + (col * 90), y);
+      });
+      y += 15;
+
+      // Theme Performance Section
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Theme Performance', 20, y);
+      y += 10;
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Theme', 20, y);
+      pdf.text('Count', 60, y);
+      pdf.text('Views', 85, y);
+      pdf.text('Downloads', 115, y);
+      pdf.text('Avg Views', 150, y);
+      y += 6;
+
+      pdf.setFont('helvetica', 'normal');
+      themeDistribution.slice(0, 8).forEach(theme => {
+        pdf.text(theme.name, 20, y);
+        pdf.text(theme.count.toString(), 60, y);
+        pdf.text(theme.views.toString(), 85, y);
+        pdf.text(theme.downloads.toString(), 115, y);
+        pdf.text(theme.avgViews.toString(), 150, y);
+        y += 6;
+      });
+      y += 10;
+
+      // Top Presentations Section
+      if (topPresentations.length > 0) {
+        if (y > 240) {
+          pdf.addPage();
+          y = 20;
+        }
+
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Top Presentations', 20, y);
+        y += 10;
+
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Title', 20, y);
+        pdf.text('Views', 100, y);
+        pdf.text('Downloads', 125, y);
+        pdf.text('Engagement', 155, y);
+        y += 6;
+
+        pdf.setFont('helvetica', 'normal');
+        topPresentations.slice(0, 10).forEach(pres => {
+          const title = pres.title.length > 35 ? pres.title.substring(0, 35) + '...' : pres.title;
+          pdf.text(title, 20, y);
+          pdf.text((pres.view_count || 0).toString(), 100, y);
+          pdf.text((pres.download_count || 0).toString(), 125, y);
+          pdf.text(`${pres.engagementRate}%`, 155, y);
+          y += 6;
+
+          if (y > 280) {
+            pdf.addPage();
+            y = 20;
+          }
+        });
+        y += 10;
+      }
+
+      // Recommendations Section
+      if (recommendations.length > 0) {
+        if (y > 240) {
+          pdf.addPage();
+          y = 20;
+        }
+
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Insights & Recommendations', 20, y);
+        y += 10;
+
+        pdf.setFontSize(10);
+        recommendations.forEach(rec => {
+          if (y > 270) {
+            pdf.addPage();
+            y = 20;
+          }
+          
+          pdf.setFont('helvetica', 'bold');
+          const typeSymbol = rec.type === 'success' ? '✓' : rec.type === 'warning' ? '!' : '•';
+          pdf.text(`${typeSymbol} ${rec.title}`, 20, y);
+          y += 6;
+          
+          pdf.setFont('helvetica', 'normal');
+          const descLines = pdf.splitTextToSize(rec.description, pageWidth - 40);
+          pdf.text(descLines, 25, y);
+          y += (descLines.length * 5) + 8;
+        });
+      }
+
+      pdf.save(`analytics-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('PDF report downloaded successfully!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -432,6 +669,26 @@ const Analytics = () => {
                   <SelectItem value="all">All Time</SelectItem>
                 </SelectContent>
               </Select>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToCSV}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Download CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToPDF}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <Button variant="outline" size="icon" onClick={loadAnalytics}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
