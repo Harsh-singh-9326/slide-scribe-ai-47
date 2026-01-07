@@ -160,12 +160,84 @@ serve(async (req) => {
 
     // Semantic chunking for better processing
     const textChunks = chunkText(prompt);
-    console.log(`Processing ${textChunks.length} text chunks`);
+    console.log(`Processing ${textChunks.length} text chunks, total content length: ${prompt.length} characters`);
 
-    // Enhanced Gemini prompt for structured output
-    const enhancedPrompt = `You are an advanced AI presentation generator that creates Gamma-style, visually stunning presentations. 
+    // Determine if this is extracted document content (longer text) or a simple topic prompt
+    const isDocumentContent = prompt.length > 500 || textChunks.length > 2;
+    
+    // Enhanced Gemini prompt that properly uses the provided content
+    const enhancedPrompt = isDocumentContent 
+      ? `You are an advanced AI presentation generator. Your task is to create a professional presentation by EXTRACTING and ORGANIZING the actual content provided below.
 
-INPUT CONTENT:
+CRITICAL INSTRUCTIONS:
+1. READ and ANALYZE the entire content below carefully
+2. EXTRACT the key information, facts, data, and insights from this content
+3. ORGANIZE this extracted information into ${slideCount} well-structured slides
+4. DO NOT generate random or generic content - use ONLY information from the provided content
+5. Preserve important details, statistics, names, dates, and specific information from the source
+6. Create a title that accurately reflects what the content is about
+
+SOURCE CONTENT TO EXTRACT FROM:
+"""
+${prompt}
+"""
+
+EXTRACTION REQUIREMENTS:
+- Identify the main topic/theme from the content
+- Extract key points, facts, and supporting details
+- Preserve any specific data, statistics, quotes, or examples mentioned
+- Organize logically: Introduction → Main Points → Details → Conclusion
+- Each slide should contain information DIRECTLY from the source content
+- Create ${slideCount} slides distributed evenly across the content
+
+STYLE PRESET: ${stylePreset.toUpperCase()}
+Theme Colors:
+- Primary: ${styleConfig.primary_color}
+- Secondary: ${styleConfig.secondary_color}  
+- Accent: ${styleConfig.accent_color}
+- Background: ${styleConfig.background_color}
+
+OUTPUT FORMAT (strict JSON):
+{
+  "title": "Title that reflects the actual content topic",
+  "topic_category": "general/business/technology/education/healthcare/etc",
+  "slides": [
+    {
+      "slide_title": "Title based on content section",
+      "content_bullets": [
+        "Extracted point from content 1",
+        "Extracted point from content 2", 
+        "Extracted point from content 3",
+        "Extracted point from content 4"
+      ],
+      "design_suggestion": {
+        "layout": "title+image|two-column|grid|chart|infographic|hero",
+        "image_prompt": "Search query relevant to this slide's content",
+        "icon_suggestions": ["relevant-icon-1", "relevant-icon-2"],
+        "style": {
+          "background_color": "${styleConfig.background_color}",
+          "font_family": "${styleConfig.font_family}",
+          "font_size_title": ${styleConfig.font_size_title},
+          "font_size_bullets": ${styleConfig.font_size_bullets},
+          "primary_color": "${styleConfig.primary_color}",
+          "secondary_color": "${styleConfig.secondary_color}",
+          "accent_color": "${styleConfig.accent_color}"
+        }
+      },
+      "speaker_notes": "Expanded explanation of this slide's content from the source"
+    }
+  ]
+}
+
+SLIDE DISTRIBUTION:
+- Slide 1: Title/Introduction - overview of the main topic
+- Slides 2 to ${slideCount - 1}: Main content sections - key points from the document
+- Slide ${slideCount}: Conclusion/Summary - key takeaways
+
+Return ONLY valid JSON, no additional text.`
+      : `You are an advanced AI presentation generator that creates Gamma-style, visually stunning presentations about the given topic.
+
+TOPIC TO CREATE PRESENTATION ABOUT:
 ${prompt}
 
 REQUIREMENTS:
