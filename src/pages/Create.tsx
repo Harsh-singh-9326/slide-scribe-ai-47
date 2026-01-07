@@ -6,14 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, FileText, Wand2, Loader2, Eye, Edit3, ArrowLeft, Check, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Upload, FileText, Wand2, Loader2, Eye, Edit3, ArrowLeft, Check, RefreshCw, MousePointerClick } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import TextSectionSelector from "@/components/TextSectionSelector";
 
 type Step = "input" | "preview" | "generating";
+type EditMode = "full" | "select";
 
 const Create = () => {
   const [step, setStep] = useState<Step>("input");
@@ -27,6 +30,8 @@ const Create = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [editMode, setEditMode] = useState<EditMode>("full");
+  const [selectedContent, setSelectedContent] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -137,10 +142,17 @@ const Create = () => {
   };
 
   const handleGenerate = async () => {
-    if (!extractedContent.trim()) {
+    // Use selected content if in select mode, otherwise use full extracted content
+    const contentToUse = editMode === "select" && selectedContent.trim() 
+      ? selectedContent 
+      : extractedContent;
+
+    if (!contentToUse.trim()) {
       toast({
         title: "Content Required",
-        description: "Please provide content to generate a presentation.",
+        description: editMode === "select" 
+          ? "Please select at least one section from the content."
+          : "Please provide content to generate a presentation.",
         variant: "destructive",
       });
       return;
@@ -158,19 +170,19 @@ const Create = () => {
 
     setStep("generating");
     setIsGenerating(true);
-    
+
     try {
       const guestUser = localStorage.getItem('guest_user');
       
       if (guestUser) {
         const mockPresentation = {
           id: 'guest-' + Date.now(),
-          title: extractedContent.substring(0, 50) + '...',
+          title: contentToUse.substring(0, 50) + '...',
           theme: template || 'modern',
           slide_count: slideCount === 'auto' ? 8 : parseInt(slideCount),
           content: Array.from({ length: slideCount === 'auto' ? 8 : parseInt(slideCount) }, (_, i) => ({
             title: `Slide ${i + 1}`,
-            content: `This is slide ${i + 1} content based on: ${extractedContent.substring(0, 100)}...`,
+            content: `This is slide ${i + 1} content based on: ${contentToUse.substring(0, 100)}...`,
             layout: 'title-content',
             notes: 'Speaker notes for this slide'
           })),
@@ -194,7 +206,7 @@ const Create = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await supabase.functions.invoke('generate-presentation', {
         body: {
-          prompt: extractedContent,
+          prompt: contentToUse,
           slideCount: slideCount === 'auto' ? 8 : parseInt(slideCount),
           theme: template || 'modern',
           stylePreset
@@ -468,30 +480,58 @@ const Create = () => {
                     <div>
                       <CardTitle className="text-lg">Extracted Content</CardTitle>
                       <CardDescription>
-                        This text will be used to generate your presentation slides
+                        Edit or select specific sections for your presentation
                       </CardDescription>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">
-                      {getWordCount(extractedContent)} words
+                      {getWordCount(editMode === "select" && selectedContent ? selectedContent : extractedContent)} words
                     </Badge>
                     <Badge variant="outline">
-                      {getCharCount(extractedContent)} chars
+                      {getCharCount(editMode === "select" && selectedContent ? selectedContent : extractedContent)} chars
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <Textarea
-                  value={extractedContent}
-                  onChange={(e) => setExtractedContent(e.target.value)}
-                  className="min-h-[400px] font-mono text-sm leading-relaxed"
-                  placeholder="Edit your content here..."
-                />
+                <Tabs value={editMode} onValueChange={(v) => setEditMode(v as EditMode)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="full" className="gap-2">
+                      <Edit3 className="w-4 h-4" />
+                      Full Edit
+                    </TabsTrigger>
+                    <TabsTrigger value="select" className="gap-2">
+                      <MousePointerClick className="w-4 h-4" />
+                      Select Sections
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="full" className="mt-0">
+                    <Textarea
+                      value={extractedContent}
+                      onChange={(e) => setExtractedContent(e.target.value)}
+                      className="min-h-[400px] font-mono text-sm leading-relaxed"
+                      placeholder="Edit your content here..."
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="select" className="mt-0">
+                    <TextSectionSelector
+                      content={extractedContent}
+                      onSelectionChange={setSelectedContent}
+                    />
+                  </TabsContent>
+                </Tabs>
+                
                 <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
                   <Check className="w-4 h-4 text-green-500" />
-                  <span>Content will be analyzed and organized into {slideCount === "auto" ? "optimal" : slideCount} slides</span>
+                  <span>
+                    {editMode === "select" 
+                      ? `Selected sections will be used to generate ${slideCount === "auto" ? "optimal" : slideCount} slides`
+                      : `Content will be analyzed and organized into ${slideCount === "auto" ? "optimal" : slideCount} slides`
+                    }
+                  </span>
                 </div>
               </CardContent>
             </Card>
