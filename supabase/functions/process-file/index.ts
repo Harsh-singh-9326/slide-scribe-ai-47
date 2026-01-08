@@ -4,36 +4,42 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 // Extract text from PDF using pdf.js (Deno-compatible)
 async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Use pdf.js which works in Deno environment
-    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
-    
-    // Disable worker for edge function environment
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-    
-    const loadingTask = pdfjsLib.getDocument({
+    // Use the legacy build which is more compatible in non-browser runtimes
+    const pdfjs: any = await import(
+      "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs"
+    );
+
+    // Disable worker in Edge Function environment
+    if (pdfjs?.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = "";
+    }
+
+    const getDocument = pdfjs.getDocument ?? pdfjs.default?.getDocument;
+    if (!getDocument) throw new Error("pdf.js getDocument not available");
+
+    const loadingTask = getDocument({
       data: new Uint8Array(pdfBuffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
+      disableWorker: true,
     });
-    
+
     const pdf = await loadingTask.promise;
-    let fullText = '';
-    
+    let fullText = "";
+
     // Extract text from each page
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: { str?: string }) => item.str || '')
-        .join(' ');
-      fullText += pageText + '\n\n';
+      const pageText = (textContent.items as any[])
+        .map((item) => item?.str ?? "")
+        .join(" ")
+        .trim();
+      if (pageText) fullText += pageText + "\n\n";
     }
-    
+
     return fullText.trim();
   } catch (error) {
-    console.error('PDF parsing error:', error);
-    throw new Error('Failed to parse PDF content');
+    console.error("PDF parsing error:", error);
+    throw new Error("Failed to parse PDF content");
   }
 }
 

@@ -147,10 +147,15 @@ serve(async (req) => {
       );
     }
 
-    const geminiApiKey = "AIzaSyD5jNyxXaWZFDL9r3NgpTJcl-5FSujLXOY";
-    if (!geminiApiKey) {
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+
+    if (!geminiApiKey && !openaiApiKey) {
       return new Response(
-        JSON.stringify({ error: 'Gemini API key not configured' }),
+        JSON.stringify({
+          error: 'No AI provider configured',
+          details: 'Set GEMINI_API_KEY and/or OPENAI_API_KEY in Supabase Edge Function secrets.'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -164,9 +169,9 @@ serve(async (req) => {
 
     // Determine if this is extracted document content (longer text) or a simple topic prompt
     const isDocumentContent = prompt.length > 500 || textChunks.length > 2;
-    
-    // Enhanced Gemini prompt that properly uses the provided content
-    const enhancedPrompt = isDocumentContent 
+
+    // Enhanced prompt that properly uses the provided content
+    const enhancedPrompt = isDocumentContent
       ? `You are an advanced AI presentation generator. Your task is to create a professional presentation by EXTRACTING and ORGANIZING the actual content provided below.
 
 CRITICAL INSTRUCTIONS:
@@ -193,7 +198,7 @@ EXTRACTION REQUIREMENTS:
 STYLE PRESET: ${stylePreset.toUpperCase()}
 Theme Colors:
 - Primary: ${styleConfig.primary_color}
-- Secondary: ${styleConfig.secondary_color}  
+- Secondary: ${styleConfig.secondary_color}
 - Accent: ${styleConfig.accent_color}
 - Background: ${styleConfig.background_color}
 
@@ -206,7 +211,7 @@ OUTPUT FORMAT (strict JSON):
       "slide_title": "Title based on content section",
       "content_bullets": [
         "Extracted point from content 1",
-        "Extracted point from content 2", 
+        "Extracted point from content 2",
         "Extracted point from content 3",
         "Extracted point from content 4"
       ],
@@ -250,7 +255,7 @@ REQUIREMENTS:
 STYLE PRESET: ${stylePreset.toUpperCase()}
 Theme Colors:
 - Primary: ${styleConfig.primary_color}
-- Secondary: ${styleConfig.secondary_color}  
+- Secondary: ${styleConfig.secondary_color}
 - Accent: ${styleConfig.accent_color}
 - Background: ${styleConfig.background_color}
 
@@ -263,7 +268,7 @@ OUTPUT FORMAT (strict JSON):
       "slide_title": "Clear, engaging slide title",
       "content_bullets": [
         "Concise bullet point 1",
-        "Engaging bullet point 2", 
+        "Engaging bullet point 2",
         "Clear bullet point 3",
         "Impactful bullet point 4"
       ],
@@ -288,7 +293,7 @@ OUTPUT FORMAT (strict JSON):
 
 SLIDE DISTRIBUTION GUIDELINES:
 - For 5 slides: Title + 3 main topics + conclusion
-- For 10 slides: Title + intro + 7 detailed topics + conclusion  
+- For 10 slides: Title + intro + 7 detailed topics + conclusion
 - For 15 slides: Title + intro + 3 sections (4 slides each) + conclusion
 - For 20 slides: Title + intro + 4 sections (4 slides each) + 2 conclusion slides
 
@@ -302,39 +307,99 @@ LAYOUT TYPES:
 
 Return ONLY valid JSON, no additional text.`;
 
-    // Generate presentation with enhanced Gemini
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: enhancedPrompt }]
-          }],
-          generationConfig: {
-            temperature: 0.8,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
-          }
-        }),
-      }
-    );
+    const generateWithGemini = async (): Promise<string> => {
+      if (!geminiApiKey) throw new Error('Gemini API key not configured');
 
-    if (!response.ok) {
-      console.error('Gemini API error:', await response.text());
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: enhancedPrompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 8192,
+            },
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`Gemini API error (${resp.status}): ${errorText}`);
+      }
+
+      const data = await resp.json();
+      return String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
+    };
+
+    const generateWithOpenAI = async (): Promise<string> => {
+      if (!openaiApiKey) throw new Error('OpenAI API key not configured');
+
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          temperature: 0.7,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: 'Return ONLY valid JSON. No markdown.' },
+            { role: 'user', content: enhancedPrompt },
+          ],
+        }),
+      });
+
+      if (!resp.ok) {
+        const errorText = await resp.text();
+        throw new Error(`OpenAI API error (${resp.status}): ${errorText}`);
+      }
+
+      const data = await resp.json();
+      return String(data?.choices?.[0]?.message?.content ?? '');
+    };
+
+    let aiText = '';
+    let lastAiError: string | null = null;
+
+    // Try Gemini first, then fall back to OpenAI (fixes Gemini quota issues)
+    if (geminiApiKey) {
+      try {
+        aiText = await generateWithGemini();
+      } catch (e) {
+        lastAiError = e instanceof Error ? e.message : String(e);
+        console.error('Gemini generation failed:', lastAiError);
+      }
+    }
+
+    if (!aiText && openaiApiKey) {
+      try {
+        aiText = await generateWithOpenAI();
+      } catch (e) {
+        lastAiError = e instanceof Error ? e.message : String(e);
+        console.error('OpenAI generation failed:', lastAiError);
+      }
+    }
+
+    if (!aiText) {
       return new Response(
-        JSON.stringify({ error: 'Failed to generate presentation' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          error: 'Failed to generate presentation',
+          details: lastAiError ?? 'Unknown AI error',
+        }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
     let generatedContent;
     try {
-      const geminiResponse = data.candidates[0].content.parts[0].text;
-      const jsonMatch = geminiResponse.match(/\{[\s\S]*\}/);
+      const jsonMatch = aiText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         generatedContent = JSON.parse(jsonMatch[0]);
 
@@ -358,10 +423,10 @@ Return ONLY valid JSON, no additional text.`;
           });
         }
       } else {
-        throw new Error('No JSON found in response');
+        throw new Error('No JSON found in AI response');
       }
     } catch (error) {
-      console.error('Failed to parse Gemini response:', error);
+      console.error('Failed to parse AI response:', error);
       return new Response(
         JSON.stringify({ error: 'Invalid AI response format' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
