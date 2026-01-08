@@ -1,15 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // Extract text from PDF using pdf.js (Deno-compatible)
 async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    // Use the legacy build which is more compatible in non-browser runtimes
     const pdfjs: any = await import(
       "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs"
     );
 
-    // Disable worker in Edge Function environment
     if (pdfjs?.GlobalWorkerOptions) {
       pdfjs.GlobalWorkerOptions.workerSrc = "";
     }
@@ -25,7 +28,6 @@ async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
     const pdf = await loadingTask.promise;
     let fullText = "";
 
-    // Extract text from each page
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
@@ -43,7 +45,66 @@ async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   }
 }
 
-// Add DOCX text extraction using mammoth
+// OCR for scanned PDFs using Lovable AI (Google Gemini Vision)
+async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
+  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!lovableApiKey) {
+    console.log('LOVABLE_API_KEY not configured, skipping OCR');
+    return '';
+  }
+
+  try {
+    // Convert PDF buffer to base64 for vision API
+    const base64Data = btoa(
+      new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract ALL text from this scanned PDF document. Return ONLY the extracted text content, preserving the original structure, paragraphs, and formatting as much as possible. Do not add any commentary or explanations.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:application/pdf;base64,${base64Data}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 8192,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OCR API error:', response.status, errorText);
+      return '';
+    }
+
+    const data = await response.json();
+    const extractedText = data.choices?.[0]?.message?.content || '';
+    console.log('OCR extracted text length:', extractedText.length);
+    return extractedText;
+  } catch (error) {
+    console.error('OCR error:', error);
+    return '';
+  }
+}
+
+// Extract DOCX text using mammoth
 async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
   try {
     const mammoth = await import('https://esm.sh/mammoth@1.6.0');
@@ -54,11 +115,6 @@ async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
     throw new Error('Failed to parse DOCX content');
   }
 }
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -76,7 +132,6 @@ serve(async (req) => {
       );
     }
 
-    // Get user from authorization header
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
       return new Response(
@@ -89,7 +144,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify the JWT token
     const jwt = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
     
@@ -101,28 +155,49 @@ serve(async (req) => {
     }
 
     let extractedText = '';
+    let usedOcr = false;
     const fileType = file.type;
     const fileName = file.name;
 
     console.log(`Processing file: ${fileName} (${fileType})`);
 
-    // Process different file types and extract content
     if (fileType === 'text/plain') {
       extractedText = await file.text();
       console.log('Extracted text from TXT file, length:', extractedText.length);
     } else if (fileType === 'application/pdf') {
       try {
-        // Convert PDF to array buffer for processing
         const pdfBuffer = await file.arrayBuffer();
         console.log('PDF buffer size:', pdfBuffer.byteLength);
         
-        const pdfText = await extractPDFText(pdfBuffer);
+        // First try standard text extraction
+        let pdfText = '';
+        try {
+          pdfText = await extractPDFText(pdfBuffer);
+        } catch (e) {
+          console.log('Standard PDF extraction failed, will try OCR');
+        }
         
-        if (pdfText && pdfText.length > 0) {
+        // Check if we got meaningful text (more than just whitespace/garbage)
+        const meaningfulTextLength = pdfText.replace(/\s+/g, '').length;
+        console.log('Standard extraction meaningful characters:', meaningfulTextLength);
+        
+        if (meaningfulTextLength < 50) {
+          // Try OCR for scanned/image-only PDFs
+          console.log('Low text content detected, attempting OCR...');
+          const ocrText = await performOCR(pdfBuffer);
+          
+          if (ocrText && ocrText.length > meaningfulTextLength) {
+            extractedText = ocrText;
+            usedOcr = true;
+            console.log('Using OCR extracted text, length:', extractedText.length);
+          } else if (pdfText) {
+            extractedText = pdfText;
+          } else {
+            extractedText = `Unable to extract text from PDF: ${fileName}. The PDF appears to be scanned or image-based and OCR was unsuccessful. Please try uploading a different file.`;
+          }
+        } else {
           extractedText = pdfText;
           console.log('Successfully extracted text from PDF, length:', extractedText.length);
-        } else {
-          extractedText = `Unable to extract text from PDF: ${fileName}. The PDF may be scanned or image-based. Please try copying the text manually or use a text file.`;
         }
       } catch (error) {
         console.error('PDF extraction error:', error);
@@ -130,7 +205,6 @@ serve(async (req) => {
       }
     } else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       try {
-        // Convert DOCX to array buffer for processing
         const docxBuffer = await file.arrayBuffer();
         const docxText = await extractDOCXText(docxBuffer);
         extractedText = docxText || `Unable to extract text from DOCX: ${fileName}. Please ensure the document contains readable text.`;
@@ -146,12 +220,12 @@ serve(async (req) => {
       );
     }
 
-    // Return extracted text without storing the file
     return new Response(
       JSON.stringify({
         text: extractedText,
         fileName: fileName,
-        fileType: fileType
+        fileType: fileType,
+        usedOcr: usedOcr
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

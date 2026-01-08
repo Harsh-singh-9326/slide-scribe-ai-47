@@ -329,6 +329,10 @@ Return ONLY valid JSON, no additional text.`;
 
       if (!resp.ok) {
         const errorText = await resp.text();
+        // Check for quota/rate limit errors
+        if (resp.status === 429 || errorText.includes('quota') || errorText.includes('rate')) {
+          throw new Error(`RATE_LIMIT:Gemini API rate limit exceeded. Please wait and try again.`);
+        }
         throw new Error(`Gemini API error (${resp.status}): ${errorText}`);
       }
 
@@ -358,6 +362,10 @@ Return ONLY valid JSON, no additional text.`;
 
       if (!resp.ok) {
         const errorText = await resp.text();
+        // Check for quota/rate limit errors
+        if (resp.status === 429 || errorText.includes('quota') || errorText.includes('rate_limit')) {
+          throw new Error(`RATE_LIMIT:OpenAI API rate limit exceeded. Please wait and try again.`);
+        }
         throw new Error(`OpenAI API error (${resp.status}): ${errorText}`);
       }
 
@@ -388,12 +396,20 @@ Return ONLY valid JSON, no additional text.`;
     }
 
     if (!aiText) {
+      // Check if the error is a rate limit error
+      const isRateLimit = lastAiError?.startsWith('RATE_LIMIT:');
+      const errorMessage = isRateLimit 
+        ? lastAiError.replace('RATE_LIMIT:', '')
+        : 'Failed to generate presentation';
+      
       return new Response(
         JSON.stringify({
-          error: 'Failed to generate presentation',
+          error: errorMessage,
+          error_type: isRateLimit ? 'rate_limit' : 'generation_failed',
           details: lastAiError ?? 'Unknown AI error',
+          retry_after: isRateLimit ? 30 : undefined, // Suggest 30 second wait
         }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: isRateLimit ? 429 : 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
