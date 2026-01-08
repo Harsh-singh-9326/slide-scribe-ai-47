@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, FileText, Wand2, Loader2, Eye, Edit3, ArrowLeft, Check, RefreshCw, MousePointerClick } from "lucide-react";
+import { Upload, FileText, Wand2, Loader2, Eye, Edit3, ArrowLeft, Check, RefreshCw, MousePointerClick, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import TextSectionSelector from "@/components/TextSectionSelector";
 
-type Step = "input" | "preview" | "generating";
+type Step = "input" | "preview" | "generating" | "error";
 type EditMode = "full" | "select";
+
+interface GenerationError {
+  message: string;
+  errorType: 'rate_limit' | 'generation_failed' | 'unknown';
+  retryAfter?: number;
+}
 
 const Create = () => {
   const [step, setStep] = useState<Step>("input");
@@ -32,6 +39,8 @@ const Create = () => {
   const [user, setUser] = useState<any>(null);
   const [editMode, setEditMode] = useState<EditMode>("full");
   const [selectedContent, setSelectedContent] = useState("");
+  const [generationError, setGenerationError] = useState<GenerationError | null>(null);
+  const [retryCountdown, setRetryCountdown] = useState(0);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -53,6 +62,14 @@ const Create = () => {
     };
     checkAuth();
   }, [navigate]);
+
+  // Countdown timer for retry
+  useEffect(() => {
+    if (retryCountdown > 0) {
+      const timer = setTimeout(() => setRetryCountdown(retryCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [retryCountdown]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -216,7 +233,26 @@ const Create = () => {
         }
       });
 
-      if (response.error) throw response.error;
+      if (response.error) {
+        // Parse error response for better error handling
+        const errorData = response.error;
+        const errorBody = typeof errorData === 'object' && 'message' in errorData 
+          ? JSON.parse(errorData.message || '{}') 
+          : {};
+        
+        if (errorBody.error_type === 'rate_limit' || response.error.message?.includes('429')) {
+          setGenerationError({
+            message: errorBody.error || 'Rate limit exceeded. Please wait before trying again.',
+            errorType: 'rate_limit',
+            retryAfter: errorBody.retry_after || 30
+          });
+          setRetryCountdown(errorBody.retry_after || 30);
+          setStep("error");
+          return;
+        }
+        
+        throw response.error;
+      }
 
       toast({
         title: "Presentation Generated!",
@@ -227,12 +263,36 @@ const Create = () => {
       
     } catch (error: any) {
       console.error('Generation error:', error);
-      toast({
-        title: "Generation Failed",
-        description: error.message || "Failed to generate presentation. Please try again.",
-        variant: "destructive",
+      
+      // Try to parse error message for structured error
+      let errorMessage = error.message || "Failed to generate presentation. Please try again.";
+      let errorType: 'rate_limit' | 'generation_failed' | 'unknown' = 'unknown';
+      
+      try {
+        if (error.message) {
+          const parsed = JSON.parse(error.message);
+          if (parsed.error_type === 'rate_limit') {
+            errorType = 'rate_limit';
+            errorMessage = parsed.error;
+            setGenerationError({
+              message: errorMessage,
+              errorType: 'rate_limit',
+              retryAfter: parsed.retry_after || 30
+            });
+            setRetryCountdown(parsed.retry_after || 30);
+            setStep("error");
+            return;
+          }
+        }
+      } catch {
+        // Not JSON, use original message
+      }
+      
+      setGenerationError({
+        message: errorMessage,
+        errorType: errorType === 'rate_limit' ? 'rate_limit' : 'generation_failed',
       });
-      setStep("preview");
+      setStep("error");
     } finally {
       setIsGenerating(false);
     }
@@ -584,7 +644,89 @@ const Create = () => {
     );
   }
 
-  // Step 3: Generating
+  // Step 3: Error state with retry
+  if (step === "error") {
+    const isRateLimit = generationError?.errorType === 'rate_limit';
+    
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-8 pb-8">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
+              </div>
+              <h2 className="text-xl font-semibold mb-2">
+                {isRateLimit ? 'Rate Limit Exceeded' : 'Generation Failed'}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                {generationError?.message || 'An error occurred while generating your presentation.'}
+              </p>
+            </div>
+            
+            {isRateLimit && retryCountdown > 0 && (
+              <Alert className="mb-6">
+                <Clock className="h-4 w-4" />
+                <AlertTitle>Please wait</AlertTitle>
+                <AlertDescription>
+                  You can retry in <span className="font-bold">{retryCountdown}</span> seconds
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  setGenerationError(null);
+                  setStep("generating");
+                  handleGenerate();
+                }}
+                disabled={isRateLimit && retryCountdown > 0}
+                className="w-full"
+              >
+                {isRateLimit && retryCountdown > 0 ? (
+                  <>
+                    <Clock className="w-4 h-4 mr-2" />
+                    Retry in {retryCountdown}s
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Try Again
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setGenerationError(null);
+                  setStep("preview");
+                }}
+                className="w-full"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Edit
+              </Button>
+              
+              <Button 
+                variant="ghost"
+                onClick={() => {
+                  setGenerationError(null);
+                  setStep("input");
+                }}
+                className="w-full"
+              >
+                Start Over
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Step 4: Generating
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Card className="w-full max-w-md">
