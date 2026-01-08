@@ -1,12 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-// Add PDF text extraction using pdf-parse
+// Extract text from PDF using pdf.js (Deno-compatible)
 async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   try {
-    const pdfParse = await import('https://esm.sh/pdf-parse@1.1.1');
-    const data = await pdfParse.default(new Uint8Array(pdfBuffer));
-    return data.text;
+    // Use pdf.js which works in Deno environment
+    const pdfjsLib = await import('https://esm.sh/pdfjs-dist@3.11.174/build/pdf.mjs');
+    
+    // Disable worker for edge function environment
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(pdfBuffer),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    });
+    
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+    
+    // Extract text from each page
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: { str?: string }) => item.str || '')
+        .join(' ');
+      fullText += pageText + '\n\n';
+    }
+    
+    return fullText.trim();
   } catch (error) {
     console.error('PDF parsing error:', error);
     throw new Error('Failed to parse PDF content');
@@ -79,14 +103,21 @@ serve(async (req) => {
     // Process different file types and extract content
     if (fileType === 'text/plain') {
       extractedText = await file.text();
-      console.log('Extracted text from TXT file:', extractedText.substring(0, 200) + '...');
+      console.log('Extracted text from TXT file, length:', extractedText.length);
     } else if (fileType === 'application/pdf') {
       try {
         // Convert PDF to array buffer for processing
         const pdfBuffer = await file.arrayBuffer();
+        console.log('PDF buffer size:', pdfBuffer.byteLength);
+        
         const pdfText = await extractPDFText(pdfBuffer);
-        extractedText = pdfText || `Unable to extract text from PDF: ${fileName}. Please ensure the PDF contains readable text.`;
-        console.log('Extracted text from PDF:', extractedText.substring(0, 200) + '...');
+        
+        if (pdfText && pdfText.length > 0) {
+          extractedText = pdfText;
+          console.log('Successfully extracted text from PDF, length:', extractedText.length);
+        } else {
+          extractedText = `Unable to extract text from PDF: ${fileName}. The PDF may be scanned or image-based. Please try copying the text manually or use a text file.`;
+        }
       } catch (error) {
         console.error('PDF extraction error:', error);
         extractedText = `Error reading PDF content from ${fileName}. Please try uploading a different PDF file or use text input instead.`;
@@ -97,7 +128,7 @@ serve(async (req) => {
         const docxBuffer = await file.arrayBuffer();
         const docxText = await extractDOCXText(docxBuffer);
         extractedText = docxText || `Unable to extract text from DOCX: ${fileName}. Please ensure the document contains readable text.`;
-        console.log('Extracted text from DOCX:', extractedText.substring(0, 200) + '...');
+        console.log('Extracted text from DOCX, length:', extractedText.length);
       } catch (error) {
         console.error('DOCX extraction error:', error);
         extractedText = `Error reading DOCX content from ${fileName}. Please try uploading a different DOCX file or use text input instead.`;
