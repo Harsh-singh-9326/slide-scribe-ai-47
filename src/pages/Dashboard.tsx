@@ -6,6 +6,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, FileText, Download, Calendar, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
+import PageTransition from "@/components/PageTransition";
+import DashboardSkeleton from "@/components/DashboardSkeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -380,6 +382,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
+      <PageTransition>
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -478,10 +481,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading presentations...</p>
-              </div>
+              <DashboardSkeleton />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {presentations.map((presentation) => (
@@ -602,6 +602,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </main>
+      </PageTransition>
     </div>
   );
 };

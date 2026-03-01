@@ -5,6 +5,7 @@ import { ArrowRight, Upload, Wand2, Download, Zap, FileText, Palette, Users, Shi
 import { Link } from "react-router-dom";
 import { Footer } from "@/components/Footer";
 import Header from "@/components/Header";
+import PageTransition from "@/components/PageTransition";
 
 const Index = () => {
   const features = [
@@ -53,6 +54,7 @@ const Index = () => {
       
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-background via-background to-primary/5 pt-20 pb-32">
+        <PageTransition>
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <Badge variant="outline" className="mb-4 px-4 py-1">
@@ -102,6 +104,7 @@ const Index = () => {
             </div>
           </div>
         </div>
+        </PageTransition>
       </section>
 
       {/* Features Section */}
