@@ -27,6 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { useAutoSave } from "@/hooks/useAutoSave";
+import { RotateCcw, X } from "lucide-react";
 
 interface Slide {
   id: string;
@@ -82,6 +84,9 @@ const Editor = () => {
       notes: "Emphasize measurable goals and timeline expectations."
     }
   ]);
+
+  // Auto-save to localStorage for crash recovery
+  const { hasRecovery, recover, dismiss, clearAutoSave } = useAutoSave(id, slides, currentTheme);
 
   // Smooth slide navigation with transitions
   const navigateToSlide = useCallback((newIndex: number) => {
@@ -374,6 +379,7 @@ const Editor = () => {
       }
 
       setLastSaved(new Date());
+      clearAutoSave();
       
       toast({
         title: "Saved",
@@ -1592,6 +1598,32 @@ const Editor = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
+      {/* Auto-save Recovery Banner */}
+      {hasRecovery && (
+        <div className="border-b bg-accent/10 animate-fade-in">
+          <div className="container mx-auto px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm">
+              <RotateCcw className="w-4 h-4 text-accent" />
+              <span>Unsaved changes recovered from your last session.</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="default" onClick={() => {
+                const data = recover();
+                if (data) {
+                  setSlides(data.slides);
+                  setCurrentTheme(data.theme);
+                }
+              }}>
+                Restore
+              </Button>
+              <Button size="sm" variant="ghost" onClick={dismiss}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Editor Header */}
       <div className="border-b bg-muted/30">
         <div className="container mx-auto px-4 py-3">
