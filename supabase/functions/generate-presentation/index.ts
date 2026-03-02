@@ -170,14 +170,14 @@ serve(async (req) => {
       );
     }
 
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 
-    if (!geminiApiKey && !openaiApiKey) {
+    if (!lovableApiKey && !geminiApiKey) {
       return new Response(
         JSON.stringify({
           error: 'No AI provider configured',
-          details: 'Set GEMINI_API_KEY and/or OPENAI_API_KEY in Supabase Edge Function secrets.'
+          details: 'LOVABLE_API_KEY or GEMINI_API_KEY must be set.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -363,19 +363,17 @@ Return ONLY valid JSON, no additional text.`;
       return String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
     };
 
-    const generateWithOpenAI = async (): Promise<string> => {
-      if (!openaiApiKey) throw new Error('OpenAI API key not configured');
+    const generateWithLovableAI = async (): Promise<string> => {
+      if (!lovableApiKey) throw new Error('Lovable API key not configured');
 
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${openaiApiKey}`,
+          Authorization: `Bearer ${lovableApiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          temperature: 0.7,
-          response_format: { type: 'json_object' },
+          model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: 'Return ONLY valid JSON. No markdown.' },
             { role: 'user', content: enhancedPrompt },
@@ -385,11 +383,13 @@ Return ONLY valid JSON, no additional text.`;
 
       if (!resp.ok) {
         const errorText = await resp.text();
-        // Check for quota/rate limit errors
-        if (resp.status === 429 || errorText.includes('quota') || errorText.includes('rate_limit')) {
-          throw new Error(`RATE_LIMIT:OpenAI API rate limit exceeded. Please wait and try again.`);
+        if (resp.status === 429) {
+          throw new Error(`RATE_LIMIT:AI rate limit exceeded. Please wait and try again.`);
         }
-        throw new Error(`OpenAI API error (${resp.status}): ${errorText}`);
+        if (resp.status === 402) {
+          throw new Error(`RATE_LIMIT:AI credits exhausted. Please add funds.`);
+        }
+        throw new Error(`Lovable AI error (${resp.status}): ${errorText}`);
       }
 
       const data = await resp.json();
@@ -399,22 +399,22 @@ Return ONLY valid JSON, no additional text.`;
     let aiText = '';
     let lastAiError: string | null = null;
 
-    // Try Gemini first, then fall back to OpenAI (fixes Gemini quota issues)
-    if (geminiApiKey) {
+    // Try Lovable AI first, then fall back to Gemini
+    if (lovableApiKey) {
+      try {
+        aiText = await generateWithLovableAI();
+      } catch (e) {
+        lastAiError = e instanceof Error ? e.message : String(e);
+        console.error('Lovable AI generation failed:', lastAiError);
+      }
+    }
+
+    if (!aiText && geminiApiKey) {
       try {
         aiText = await generateWithGemini();
       } catch (e) {
         lastAiError = e instanceof Error ? e.message : String(e);
         console.error('Gemini generation failed:', lastAiError);
-      }
-    }
-
-    if (!aiText && openaiApiKey) {
-      try {
-        aiText = await generateWithOpenAI();
-      } catch (e) {
-        lastAiError = e instanceof Error ? e.message : String(e);
-        console.error('OpenAI generation failed:', lastAiError);
       }
     }
 
