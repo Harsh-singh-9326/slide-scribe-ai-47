@@ -894,22 +894,28 @@ const Editor = () => {
     // Different layout renderers
     const layouts = {
       'hero': () => (
-        <div className="relative w-full h-full flex items-center justify-center text-center p-12">
+        <div className="relative w-full h-full flex items-center justify-center text-center overflow-hidden">
           {imageUrl && (
-            <div 
-              className="absolute inset-0 bg-cover bg-center opacity-20"
-              style={{ backgroundImage: `url(${imageUrl})` }}
-            />
+            <>
+              <div 
+                className="absolute inset-0 bg-cover bg-center scale-110 blur-sm"
+                style={{ backgroundImage: `url(${imageUrl})` }}
+              />
+              <div 
+                className="absolute inset-0"
+                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}dd 0%, ${themeStyles.titleColor === '#ffffff' ? '#000000' : themeStyles.titleColor}cc 100%)` }}
+              />
+            </>
           )}
-          <div className="relative z-10 max-w-3xl">
+          <div className="relative z-10 max-w-3xl px-12">
             <h1 
-              className="text-5xl font-bold mb-8 leading-tight"
+              className="text-5xl font-bold mb-8 leading-tight drop-shadow-lg"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
             </h1>
             <div 
-              className="text-xl leading-relaxed space-y-4"
+              className="text-xl leading-relaxed space-y-4 drop-shadow-md"
               style={{ color: themeStyles.contentColor }}
             >
               {currentSlide.content.split('\n').map((line, index) => (
@@ -946,23 +952,32 @@ const Editor = () => {
               ))}
             </div>
           </div>
-          <div className="w-1/2 flex items-center justify-center">
+          <div className="w-1/2 flex items-center justify-center pl-4">
             {imageUrl ? (
-              <img 
-                src={imageUrl} 
-                alt="Slide visual" 
-                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-              />
+              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl group">
+                <img 
+                  src={imageUrl} 
+                  alt="Slide visual" 
+                  className="w-full h-full object-cover"
+                />
+                <div 
+                  className="absolute inset-0 opacity-20"
+                  style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}40, transparent)` }}
+                />
+              </div>
             ) : (
               <div 
-                className="w-64 h-64 rounded-lg flex items-center justify-center text-white/80"
-                style={{ backgroundColor: themeStyles.accentColor }}
+                className="w-full h-4/5 rounded-2xl flex items-center justify-center overflow-hidden"
+                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}30, ${themeStyles.accentColor}10)`, border: `1px solid ${themeStyles.accentColor}30` }}
               >
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">📊</span>
+                <div className="text-center opacity-60">
+                  <div 
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{ background: `${themeStyles.accentColor}20` }}
+                  >
+                    <span className="text-3xl">📊</span>
                   </div>
-                  <p className="text-sm">Visual Content</p>
+                  <p className="text-sm" style={{ color: themeStyles.contentColor }}>Visual Content</p>
                 </div>
               </div>
             )}
@@ -971,38 +986,46 @@ const Editor = () => {
       ),
       
       'title-content': () => (
-        <div className="w-full h-full flex flex-col justify-center items-center text-center p-12">
+        <div className="w-full h-full flex p-12 overflow-hidden">
+          <div className={cn("flex flex-col justify-center", imageUrl ? "w-3/5 pr-8" : "w-full items-center text-center")}>
+            <h1 
+              className="text-4xl font-bold mb-8 max-w-4xl"
+              style={{ color: themeStyles.titleColor }}
+            >
+              {currentSlide.title}
+            </h1>
+            <div 
+              className="text-xl leading-relaxed max-w-3xl space-y-4"
+              style={{ color: themeStyles.contentColor }}
+            >
+              {currentSlide.content.split('\n').map((line, index) => (
+                <p key={index} className={cn("flex items-start", !imageUrl && "justify-center")}>
+                  {line.startsWith('• ') && (
+                    <span 
+                      className="w-2.5 h-2.5 rounded-full mr-4 mt-2 flex-shrink-0"
+                      style={{ backgroundColor: themeStyles.accentColor }}
+                    />
+                  )}
+                  <span>{line.replace('• ', '')}</span>
+                </p>
+              ))}
+            </div>
+          </div>
           {imageUrl && (
-            <div className="mb-8">
-              <img 
-                src={imageUrl} 
-                alt="Slide visual" 
-                className="max-w-xs max-h-48 object-contain rounded-lg shadow-lg mx-auto"
-              />
+            <div className="w-2/5 flex items-center justify-center">
+              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src={imageUrl} 
+                  alt="Slide visual" 
+                  className="w-full h-full object-cover"
+                />
+                <div 
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(180deg, transparent 60%, ${themeStyles.accentColor}30)` }}
+                />
+              </div>
             </div>
           )}
-          <h1 
-            className="text-4xl font-bold mb-8 max-w-4xl"
-            style={{ color: themeStyles.titleColor }}
-          >
-            {currentSlide.title}
-          </h1>
-          <div 
-            className="text-xl leading-relaxed max-w-3xl space-y-4"
-            style={{ color: themeStyles.contentColor }}
-          >
-            {currentSlide.content.split('\n').map((line, index) => (
-              <p key={index} className="flex items-center justify-center">
-                {line.startsWith('• ') && (
-                  <span 
-                    className="w-2 h-2 rounded-full mr-4 flex-shrink-0"
-                    style={{ backgroundColor: themeStyles.accentColor }}
-                  />
-                )}
-                <span>{line.replace('• ', '')}</span>
-              </p>
-            ))}
-          </div>
         </div>
       ),
       
@@ -1017,66 +1040,84 @@ const Editor = () => {
         gridItems = gridItems.slice(0, 4); // Take exactly 4 items
         
         return (
-          <div className="w-full h-full p-12">
-            <h1 
-              className="text-4xl font-bold mb-12 text-center"
-              style={{ color: themeStyles.titleColor }}
-            >
-              {currentSlide.title}
-            </h1>
-            <div className="grid grid-cols-2 gap-8 h-2/3">
-              {gridItems.map((item, index) => (
-                <div 
-                  key={index}
-                  className="rounded-lg p-6 flex flex-col items-center justify-center text-center shadow-lg"
-                  style={{ 
-                    backgroundColor: `${themeStyles.accentColor}20`,
-                    borderLeft: `4px solid ${themeStyles.accentColor}`
-                  }}
-                >
+          <div className="w-full h-full p-12 relative overflow-hidden">
+            {imageUrl && (
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-10"
+                style={{ backgroundImage: `url(${imageUrl})` }}
+              />
+            )}
+            <div className="relative z-10">
+              <h1 
+                className="text-4xl font-bold mb-12 text-center"
+                style={{ color: themeStyles.titleColor }}
+              >
+                {currentSlide.title}
+              </h1>
+              <div className="grid grid-cols-2 gap-6 h-2/3">
+                {gridItems.map((item, index) => (
                   <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-white font-bold"
-                    style={{ backgroundColor: themeStyles.accentColor }}
+                    key={index}
+                    className="rounded-2xl p-6 flex flex-col items-center justify-center text-center backdrop-blur-sm transition-transform"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${themeStyles.accentColor}18, ${themeStyles.accentColor}08)`,
+                      border: `1px solid ${themeStyles.accentColor}25`,
+                      boxShadow: `0 8px 32px ${themeStyles.accentColor}10`
+                    }}
                   >
-                    {index + 1}
+                    <div 
+                      className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 text-white font-bold text-lg"
+                      style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}, ${themeStyles.accentColor}cc)` }}
+                    >
+                      {index + 1}
+                    </div>
+                    <p 
+                      className="text-lg font-medium leading-snug"
+                      style={{ color: themeStyles.contentColor }}
+                    >
+                      {item}
+                    </p>
                   </div>
-                  <p 
-                    className="text-lg font-medium"
-                    style={{ color: themeStyles.contentColor }}
-                  >
-                    {item}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         );
       },
 
       'image-left': () => (
-        <div className="w-full h-full flex p-12">
-          <div className="w-1/2 flex items-center justify-center pr-8">
+        <div className="w-full h-full flex overflow-hidden">
+          <div className="w-1/2 relative">
             {imageUrl ? (
-              <img 
-                src={imageUrl} 
-                alt="Slide visual" 
-                className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
-              />
+              <>
+                <img 
+                  src={imageUrl} 
+                  alt="Slide visual" 
+                  className="w-full h-full object-cover"
+                />
+                <div 
+                  className="absolute inset-0"
+                  style={{ background: `linear-gradient(to right, transparent 70%, ${themeStyles.background?.includes('gradient') ? '#00000080' : themeStyles.background || '#ffffff'})`}}
+                />
+              </>
             ) : (
               <div 
-                className="w-64 h-64 rounded-lg flex items-center justify-center text-white/80"
-                style={{ backgroundColor: themeStyles.accentColor }}
+                className="w-full h-full flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}25, ${themeStyles.accentColor}10)` }}
               >
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">🖼️</span>
+                <div className="text-center opacity-50">
+                  <div 
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{ background: `${themeStyles.accentColor}20` }}
+                  >
+                    <span className="text-3xl">🖼️</span>
                   </div>
-                  <p className="text-sm">Add Image</p>
+                  <p className="text-sm" style={{ color: themeStyles.contentColor }}>Add Image</p>
                 </div>
               </div>
             )}
           </div>
-          <div className="w-1/2 flex flex-col justify-center">
+          <div className="w-1/2 flex flex-col justify-center p-12">
             <h1 
               className="text-4xl font-bold mb-6"
               style={{ color: themeStyles.titleColor }}
@@ -1091,7 +1132,7 @@ const Editor = () => {
                 <p key={index} className="flex items-start">
                   {line.startsWith('• ') && (
                     <span 
-                      className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0"
+                      className="w-2.5 h-2.5 rounded-full mr-3 mt-2 flex-shrink-0"
                       style={{ backgroundColor: themeStyles.accentColor }}
                     />
                   )}
