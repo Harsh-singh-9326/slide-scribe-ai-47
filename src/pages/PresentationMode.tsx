@@ -28,6 +28,16 @@ interface Slide {
   notes?: string;
   layout?: string;
   theme?: string;
+  design_suggestion?: {
+    layout?: string;
+    image_url?: string;
+    style?: {
+      background_color?: string;
+      primary_color?: string;
+      secondary_color?: string;
+      accent_color?: string;
+    };
+  };
 }
 
 interface ThemeStyles {
@@ -475,96 +485,238 @@ const PresentationMode = () => {
     const styles = getThemeStyles(theme);
     const layout = slide.layout || 'title-content';
     const contentLines = slide.content.split('\n').filter(l => l.trim());
+    const imageUrl = slide.design_suggestion?.image_url;
 
-    const renderContent = () => {
-      switch (layout) {
-        case 'hero':
-          return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-16">
-              <h1 className="text-6xl font-bold mb-8" style={{ color: styles.titleColor }}>
-                {slide.title}
-              </h1>
-              <div className="text-2xl space-y-4" style={{ color: styles.contentColor }}>
-                {contentLines.map((line, i) => (
-                  <p key={i}>{line.replace('• ', '')}</p>
-                ))}
-              </div>
+    const layouts: Record<string, () => JSX.Element> = {
+      'hero': () => (
+        <div className="relative flex flex-col items-center justify-center h-full text-center overflow-hidden">
+          {imageUrl && (
+            <>
+              <div 
+                className="absolute inset-0 bg-cover bg-center scale-110 blur-sm"
+                style={{ backgroundImage: `url(${imageUrl})` }}
+              />
+              <div 
+                className="absolute inset-0"
+                style={{ background: `linear-gradient(135deg, ${styles.accentColor}dd 0%, ${styles.titleColor === '#ffffff' ? '#000000' : styles.titleColor}cc 100%)` }}
+              />
+            </>
+          )}
+          <div className="relative z-10 max-w-4xl px-16">
+            <h1 className="text-7xl font-bold mb-10 leading-tight drop-shadow-lg" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="text-3xl space-y-4 drop-shadow-md" style={{ color: styles.contentColor }}>
+              {contentLines.map((line, i) => (
+                <p key={i} className="slide-element" style={{ animationDelay: `${i * 0.1}s` }}>{line.replace('• ', '')}</p>
+              ))}
             </div>
-          );
-        case 'two-column':
-          return (
-            <div className="flex h-full p-16">
-              <div className="w-1/2 pr-8 flex flex-col justify-center">
-                <h1 className="text-5xl font-bold mb-6" style={{ color: styles.titleColor }}>
-                  {slide.title}
-                </h1>
-                <div className="text-xl space-y-3" style={{ color: styles.contentColor }}>
-                  {contentLines.map((line, i) => (
-                    <p key={i} className="flex items-start">
-                      <span className="w-3 h-3 rounded-full mr-4 mt-2 flex-shrink-0" style={{ backgroundColor: styles.accentColor }} />
-                      {line.replace('• ', '')}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              <div className="w-1/2 flex items-center justify-center">
-                <div className="w-80 h-80 rounded-2xl flex items-center justify-center" style={{ backgroundColor: styles.accentColor }}>
-                  <span className="text-6xl">📊</span>
-                </div>
-              </div>
+          </div>
+        </div>
+      ),
+
+      'two-column': () => (
+        <div className="flex h-full p-16">
+          <div className="w-1/2 pr-12 flex flex-col justify-center">
+            <h1 className="text-6xl font-bold mb-8 slide-element" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="text-2xl space-y-4" style={{ color: styles.contentColor }}>
+              {contentLines.map((line, i) => (
+                <p key={i} className="flex items-start slide-element" style={{ animationDelay: `${(i + 1) * 0.1}s` }}>
+                  <span className="w-3 h-3 rounded-full mr-4 mt-2.5 flex-shrink-0" style={{ backgroundColor: styles.accentColor }} />
+                  {line.replace('• ', '')}
+                </p>
+              ))}
             </div>
-          );
-        case 'grid':
-          const gridItems = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
-          while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
-          return (
-            <div className="h-full p-16">
-              <h1 className="text-5xl font-bold mb-12 text-center" style={{ color: styles.titleColor }}>
+          </div>
+          <div className="w-1/2 flex items-center justify-center pl-4">
+            {imageUrl ? (
+              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl slide-element" style={{ animationDelay: '0.2s' }}>
+                <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, ${styles.accentColor}40, transparent)` }} />
+              </div>
+            ) : (
+              <div className="w-80 h-80 rounded-2xl flex items-center justify-center slide-element" style={{ backgroundColor: `${styles.accentColor}20`, border: `1px solid ${styles.accentColor}30` }}>
+                <span className="text-6xl">📊</span>
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+
+      'grid': () => {
+        const gridItems = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
+        return (
+          <div className="h-full p-16 relative overflow-hidden">
+            {imageUrl && (
+              <div className="absolute inset-0 bg-cover bg-center opacity-10" style={{ backgroundImage: `url(${imageUrl})` }} />
+            )}
+            <div className="relative z-10">
+              <h1 className="text-6xl font-bold mb-14 text-center slide-element" style={{ color: styles.titleColor }}>
                 {slide.title}
               </h1>
               <div className="grid grid-cols-2 gap-8 h-2/3">
                 {gridItems.map((item, i) => (
-                  <div key={i} className="rounded-xl p-8 flex flex-col items-center justify-center text-center" 
-                    style={{ backgroundColor: `${styles.accentColor}20`, borderLeft: `4px solid ${styles.accentColor}` }}>
-                    <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4 text-white font-bold text-2xl"
-                      style={{ backgroundColor: styles.accentColor }}>
+                  <div 
+                    key={i} 
+                    className="rounded-2xl p-8 flex flex-col items-center justify-center text-center backdrop-blur-sm slide-element"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${styles.accentColor}18, ${styles.accentColor}08)`,
+                      border: `1px solid ${styles.accentColor}25`,
+                      boxShadow: `0 8px 32px ${styles.accentColor}10`,
+                      animationDelay: `${i * 0.1}s`
+                    }}
+                  >
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-4 text-white font-bold text-2xl"
+                      style={{ background: `linear-gradient(135deg, ${styles.accentColor}, ${styles.accentColor}cc)` }}>
                       {i + 1}
                     </div>
-                    <p className="text-xl" style={{ color: styles.contentColor }}>{item}</p>
+                    <p className="text-xl font-medium" style={{ color: styles.contentColor }}>{item}</p>
                   </div>
                 ))}
               </div>
             </div>
-          );
-        default: // title-content
-          return (
-            <div className="flex flex-col items-center justify-center h-full text-center p-16">
-              <h1 className="text-5xl font-bold mb-12" style={{ color: styles.titleColor }}>
-                {slide.title}
-              </h1>
-              <div className="text-2xl space-y-4" style={{ color: styles.contentColor }}>
-                {contentLines.map((line, i) => (
-                  <p key={i} className="flex items-center justify-center">
-                    <span className="w-3 h-3 rounded-full mr-4" style={{ backgroundColor: styles.accentColor }} />
-                    {line.replace('• ', '')}
-                  </p>
-                ))}
+          </div>
+        );
+      },
+
+      'image-left': () => (
+        <div className="flex h-full overflow-hidden">
+          <div className="w-1/2 relative">
+            {imageUrl ? (
+              <>
+                <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(to right, transparent 70%, ${styles.background?.includes('gradient') ? '#00000080' : '#00000060'})` }} />
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${styles.accentColor}25, ${styles.accentColor}10)` }}>
+                <span className="text-6xl opacity-50">🖼️</span>
+              </div>
+            )}
+          </div>
+          <div className="w-1/2 flex flex-col justify-center p-16">
+            <h1 className="text-5xl font-bold mb-8 slide-element" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="text-xl leading-relaxed space-y-4" style={{ color: styles.contentColor }}>
+              {contentLines.map((line, i) => (
+                <p key={i} className="flex items-start slide-element" style={{ animationDelay: `${(i + 1) * 0.1}s` }}>
+                  <span className="w-2.5 h-2.5 rounded-full mr-3 mt-2 flex-shrink-0" style={{ backgroundColor: styles.accentColor }} />
+                  {line.replace('• ', '')}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      ),
+
+      'quote': () => (
+        <div className="w-full h-full flex flex-col justify-center items-center text-center p-20">
+          <div className="text-9xl mb-8 opacity-30 slide-element" style={{ color: styles.accentColor }}>"</div>
+          <h1 className="text-4xl font-light italic mb-10 max-w-5xl leading-relaxed slide-element" style={{ color: styles.titleColor, animationDelay: '0.1s' }}>
+            {slide.title}
+          </h1>
+          <div className="text-2xl slide-element" style={{ color: styles.contentColor, animationDelay: '0.2s' }}>
+            {contentLines[0]?.replace('• ', '')}
+          </div>
+        </div>
+      ),
+
+      'comparison': () => {
+        const leftItems = contentLines.slice(0, 2).map(l => l.replace('• ', ''));
+        const rightItems = contentLines.slice(2, 4).map(l => l.replace('• ', ''));
+        return (
+          <div className="w-full h-full p-16">
+            <h1 className="text-6xl font-bold mb-14 text-center slide-element" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="flex gap-10 h-2/3">
+              <div className="flex-1 rounded-2xl p-10 slide-element" style={{ backgroundColor: `${styles.accentColor}15`, animationDelay: '0.1s' }}>
+                <h2 className="text-3xl font-semibold mb-8 text-center" style={{ color: styles.accentColor }}>Option A</h2>
+                <div className="space-y-5">
+                  {leftItems.map((item, i) => (
+                    <p key={i} className="flex items-start text-xl" style={{ color: styles.contentColor }}>
+                      <span className="w-3 h-3 rounded-full mr-4 mt-2" style={{ backgroundColor: styles.accentColor }} />
+                      {item || `Point ${i + 1}`}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <div className="w-px" style={{ backgroundColor: `${styles.accentColor}40` }} />
+              <div className="flex-1 rounded-2xl p-10 slide-element" style={{ backgroundColor: `${styles.accentColor}15`, animationDelay: '0.2s' }}>
+                <h2 className="text-3xl font-semibold mb-8 text-center" style={{ color: styles.accentColor }}>Option B</h2>
+                <div className="space-y-5">
+                  {rightItems.map((item, i) => (
+                    <p key={i} className="flex items-start text-xl" style={{ color: styles.contentColor }}>
+                      <span className="w-3 h-3 rounded-full mr-4 mt-2" style={{ backgroundColor: styles.accentColor }} />
+                      {item || `Point ${i + 1}`}
+                    </p>
+                  ))}
+                </div>
               </div>
             </div>
-          );
-      }
+          </div>
+        );
+      },
+
+      'stats': () => {
+        const stats = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        const icons = ['📈', '🎯', '💡', '🚀'];
+        return (
+          <div className="w-full h-full p-16">
+            <h1 className="text-6xl font-bold mb-20 text-center slide-element" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="grid grid-cols-4 gap-8 h-1/2">
+              {stats.map((stat, i) => (
+                <div key={i} className="flex flex-col items-center justify-center text-center slide-element" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <div className="text-6xl mb-6">{icons[i]}</div>
+                  <p className="text-2xl font-medium" style={{ color: styles.contentColor }}>{stat || `Stat ${i + 1}`}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      },
+
+      'title-content': () => (
+        <div className="w-full h-full flex p-16 overflow-hidden">
+          <div className={cn("flex flex-col justify-center", imageUrl ? "w-3/5 pr-12" : "w-full items-center text-center")}>
+            <h1 className="text-6xl font-bold mb-12 max-w-5xl slide-element" style={{ color: styles.titleColor }}>
+              {slide.title}
+            </h1>
+            <div className="text-2xl leading-relaxed max-w-4xl space-y-5" style={{ color: styles.contentColor }}>
+              {contentLines.map((line, i) => (
+                <p key={i} className={cn("flex items-start slide-element", !imageUrl && "justify-center")} style={{ animationDelay: `${(i + 1) * 0.1}s` }}>
+                  <span className="w-3 h-3 rounded-full mr-4 mt-2.5 flex-shrink-0" style={{ backgroundColor: styles.accentColor }} />
+                  {line.replace('• ', '')}
+                </p>
+              ))}
+            </div>
+          </div>
+          {imageUrl && (
+            <div className="w-2/5 flex items-center justify-center slide-element" style={{ animationDelay: '0.2s' }}>
+              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl">
+                <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 60%, ${styles.accentColor}30)` }} />
+              </div>
+            </div>
+          )}
+        </div>
+      )
     };
+
+    const LayoutComponent = layouts[layout] || layouts['title-content'];
 
     return (
       <div 
-        className={cn(
-          "w-full h-full",
-          isTransitioning && slideDirection === 'right' && "animate-slide-in-right",
-          isTransitioning && slideDirection === 'left' && "animate-slide-in-left"
-        )}
+        key={currentSlide}
+        className="w-full h-full animate-slide-enter"
         style={{ background: styles.background }}
       >
-        {renderContent()}
+        <LayoutComponent />
       </div>
     );
   };
