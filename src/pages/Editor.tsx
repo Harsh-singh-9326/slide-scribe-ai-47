@@ -954,7 +954,7 @@ const Editor = () => {
                   {line.startsWith('• ') && (
                     <span 
                       className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0 ring-2 ring-offset-1"
-                      style={{ backgroundColor: themeStyles.accentColor, borderColor: themeStyles.accentColor, ringColor: `${themeStyles.accentColor}30` }}
+                      style={{ backgroundColor: themeStyles.accentColor, boxShadow: `0 0 0 2px ${themeStyles.accentColor}30` }}
                     />
                   )}
                   <span>{line.replace('• ', '')}</span>
