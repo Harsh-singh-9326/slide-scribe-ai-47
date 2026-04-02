@@ -895,31 +895,37 @@ const Editor = () => {
     const layouts = {
       'hero': () => (
         <div className="relative w-full h-full flex items-center justify-center text-center overflow-hidden">
+          {/* Decorative floating shapes */}
+          <div className="absolute top-10 left-10 w-32 h-32 rounded-full opacity-10" style={{ background: themeStyles.accentColor, filter: 'blur(40px)' }} />
+          <div className="absolute bottom-16 right-16 w-48 h-48 rounded-full opacity-8" style={{ background: themeStyles.titleColor, filter: 'blur(60px)' }} />
           {imageUrl && (
             <>
               <div 
-                className="absolute inset-0 bg-cover bg-center scale-110 blur-sm"
+                className="absolute inset-0 bg-cover bg-center scale-110 blur-md"
                 style={{ backgroundImage: `url(${imageUrl})` }}
               />
               <div 
                 className="absolute inset-0"
-                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}dd 0%, ${themeStyles.titleColor === '#ffffff' ? '#000000' : themeStyles.titleColor}cc 100%)` }}
+                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}ee 0%, ${themeStyles.titleColor === '#ffffff' ? '#000000' : themeStyles.titleColor}dd 100%)` }}
               />
             </>
           )}
           <div className="relative z-10 max-w-3xl px-12">
+            {/* Accent line above title */}
+            <div className="w-16 h-1 rounded-full mx-auto mb-6" style={{ background: `linear-gradient(90deg, ${themeStyles.accentColor}, ${themeStyles.titleColor})` }} />
             <h1 
-              className="text-5xl font-bold mb-8 leading-tight drop-shadow-lg"
+              className="text-5xl font-extrabold mb-6 leading-tight drop-shadow-lg tracking-tight"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
             </h1>
+            <div className="w-24 h-0.5 rounded-full mx-auto mb-8 opacity-40" style={{ backgroundColor: themeStyles.contentColor }} />
             <div 
-              className="text-xl leading-relaxed space-y-4 drop-shadow-md"
+              className="text-xl leading-relaxed space-y-3 drop-shadow-md"
               style={{ color: themeStyles.contentColor }}
             >
               {currentSlide.content.split('\n').map((line, index) => (
-                <p key={index}>{line.replace('• ', '')}</p>
+                <p key={index} className="opacity-90">{line.replace('• ', '')}</p>
               ))}
             </div>
           </div>
@@ -927,10 +933,14 @@ const Editor = () => {
       ),
       
       'two-column': () => (
-        <div className="w-full h-full flex p-12">
-          <div className="w-1/2 pr-8">
+        <div className="w-full h-full flex p-12 relative overflow-hidden">
+          {/* Decorative corner accent */}
+          <div className="absolute top-0 left-0 w-2 h-24 rounded-br-full" style={{ backgroundColor: themeStyles.accentColor }} />
+          <div className="absolute top-0 left-0 h-2 w-24 rounded-br-full" style={{ backgroundColor: themeStyles.accentColor }} />
+          <div className="w-1/2 pr-8 flex flex-col justify-center">
+            <div className="w-10 h-1 rounded-full mb-4" style={{ background: `linear-gradient(90deg, ${themeStyles.accentColor}, transparent)` }} />
             <h1 
-              className="text-4xl font-bold mb-6"
+              className="text-4xl font-extrabold mb-6 tracking-tight"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
@@ -940,11 +950,11 @@ const Editor = () => {
               style={{ color: themeStyles.contentColor }}
             >
               {currentSlide.content.split('\n').map((line, index) => (
-                <p key={index} className="flex items-start">
+                <p key={index} className="flex items-start group">
                   {line.startsWith('• ') && (
                     <span 
-                      className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0"
-                      style={{ backgroundColor: themeStyles.accentColor }}
+                      className="w-2 h-2 rounded-full mr-3 mt-2 flex-shrink-0 ring-2 ring-offset-1"
+                      style={{ backgroundColor: themeStyles.accentColor, boxShadow: `0 0 0 2px ${themeStyles.accentColor}30` }}
                     />
                   )}
                   <span>{line.replace('• ', '')}</span>
@@ -954,30 +964,23 @@ const Editor = () => {
           </div>
           <div className="w-1/2 flex items-center justify-center pl-4">
             {imageUrl ? (
-              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl group">
-                <img 
-                  src={imageUrl} 
-                  alt="Slide visual" 
-                  className="w-full h-full object-cover"
-                />
-                <div 
-                  className="absolute inset-0 opacity-20"
-                  style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}40, transparent)` }}
-                />
+              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl">
+                <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}30, transparent 50%)` }} />
+                {/* Decorative frame corner */}
+                <div className="absolute top-3 left-3 w-8 h-8 border-t-2 border-l-2 rounded-tl-lg" style={{ borderColor: `${themeStyles.titleColor}80` }} />
+                <div className="absolute bottom-3 right-3 w-8 h-8 border-b-2 border-r-2 rounded-br-lg" style={{ borderColor: `${themeStyles.titleColor}80` }} />
               </div>
             ) : (
               <div 
                 className="w-full h-4/5 rounded-2xl flex items-center justify-center overflow-hidden"
-                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}30, ${themeStyles.accentColor}10)`, border: `1px solid ${themeStyles.accentColor}30` }}
+                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}20, ${themeStyles.accentColor}05)`, border: `1px solid ${themeStyles.accentColor}20` }}
               >
                 <div className="text-center opacity-60">
-                  <div 
-                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ background: `${themeStyles.accentColor}20` }}
-                  >
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3" style={{ background: `${themeStyles.accentColor}15`, border: `1px dashed ${themeStyles.accentColor}40` }}>
                     <span className="text-3xl">📊</span>
                   </div>
-                  <p className="text-sm" style={{ color: themeStyles.contentColor }}>Visual Content</p>
+                  <p className="text-sm font-medium" style={{ color: themeStyles.contentColor }}>Visual Content</p>
                 </div>
               </div>
             )}
@@ -986,10 +989,13 @@ const Editor = () => {
       ),
       
       'title-content': () => (
-        <div className="w-full h-full flex p-12 overflow-hidden">
+        <div className="w-full h-full flex p-12 overflow-hidden relative">
+          {/* Subtle decorative circle */}
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full opacity-5" style={{ border: `3px solid ${themeStyles.accentColor}` }} />
           <div className={cn("flex flex-col justify-center", imageUrl ? "w-3/5 pr-8" : "w-full items-center text-center")}>
+            <div className={cn("w-12 h-1 rounded-full mb-5", !imageUrl && "mx-auto")} style={{ background: `linear-gradient(90deg, ${themeStyles.accentColor}, ${themeStyles.accentColor}40)` }} />
             <h1 
-              className="text-4xl font-bold mb-8 max-w-4xl"
+              className="text-4xl font-extrabold mb-8 max-w-4xl tracking-tight"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
@@ -1002,8 +1008,8 @@ const Editor = () => {
                 <p key={index} className={cn("flex items-start", !imageUrl && "justify-center")}>
                   {line.startsWith('• ') && (
                     <span 
-                      className="w-2.5 h-2.5 rounded-full mr-4 mt-2 flex-shrink-0"
-                      style={{ backgroundColor: themeStyles.accentColor }}
+                      className="w-2.5 h-2.5 rounded-full mr-4 mt-2 flex-shrink-0 shadow-sm"
+                      style={{ backgroundColor: themeStyles.accentColor, boxShadow: `0 0 8px ${themeStyles.accentColor}40` }}
                     />
                   )}
                   <span>{line.replace('• ', '')}</span>
@@ -1013,16 +1019,13 @@ const Editor = () => {
           </div>
           {imageUrl && (
             <div className="w-2/5 flex items-center justify-center">
-              <div className="relative w-full h-4/5 rounded-2xl overflow-hidden shadow-2xl">
-                <img 
-                  src={imageUrl} 
-                  alt="Slide visual" 
-                  className="w-full h-full object-cover"
-                />
-                <div 
-                  className="absolute inset-0"
-                  style={{ background: `linear-gradient(180deg, transparent 60%, ${themeStyles.accentColor}30)` }}
-                />
+              <div className="relative w-full h-4/5">
+                {/* Shadow layer behind image */}
+                <div className="absolute inset-2 rounded-2xl" style={{ background: themeStyles.accentColor, opacity: 0.15, filter: 'blur(20px)' }} />
+                <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl">
+                  <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, transparent 50%, ${themeStyles.accentColor}25)` }} />
+                </div>
               </div>
             </div>
           )}
@@ -1032,24 +1035,25 @@ const Editor = () => {
       'grid': () => {
         const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
         let gridItems = contentLines.map(line => line.replace('• ', ''));
-        
-        // Ensure we have at least 4 items for the grid
-        while (gridItems.length < 4) {
-          gridItems.push(`Point ${gridItems.length + 1}`);
-        }
-        gridItems = gridItems.slice(0, 4); // Take exactly 4 items
+        while (gridItems.length < 4) gridItems.push(`Point ${gridItems.length + 1}`);
+        gridItems = gridItems.slice(0, 4);
+        const gridIcons = ['💡', '🎯', '📊', '🚀'];
         
         return (
           <div className="w-full h-full p-12 relative overflow-hidden">
             {imageUrl && (
-              <div 
-                className="absolute inset-0 bg-cover bg-center opacity-10"
-                style={{ backgroundImage: `url(${imageUrl})` }}
-              />
+              <div className="absolute inset-0 bg-cover bg-center opacity-8" style={{ backgroundImage: `url(${imageUrl})` }} />
             )}
+            {/* Decorative dots pattern */}
+            <div className="absolute top-8 right-8 grid grid-cols-3 gap-1.5 opacity-15">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: themeStyles.accentColor }} />
+              ))}
+            </div>
             <div className="relative z-10">
+              <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: `linear-gradient(90deg, transparent, ${themeStyles.accentColor}, transparent)` }} />
               <h1 
-                className="text-4xl font-bold mb-12 text-center"
+                className="text-4xl font-extrabold mb-12 text-center tracking-tight"
                 style={{ color: themeStyles.titleColor }}
               >
                 {currentSlide.title}
@@ -1058,21 +1062,23 @@ const Editor = () => {
                 {gridItems.map((item, index) => (
                   <div 
                     key={index}
-                    className="rounded-2xl p-6 flex flex-col items-center justify-center text-center backdrop-blur-sm transition-transform"
+                    className="rounded-2xl p-6 flex flex-col items-center justify-center text-center backdrop-blur-sm relative overflow-hidden"
                     style={{ 
-                      background: `linear-gradient(135deg, ${themeStyles.accentColor}18, ${themeStyles.accentColor}08)`,
-                      border: `1px solid ${themeStyles.accentColor}25`,
-                      boxShadow: `0 8px 32px ${themeStyles.accentColor}10`
+                      background: `linear-gradient(145deg, ${themeStyles.accentColor}12, ${themeStyles.accentColor}04)`,
+                      border: `1px solid ${themeStyles.accentColor}20`,
+                      boxShadow: `0 8px 32px ${themeStyles.accentColor}08, inset 0 1px 0 ${themeStyles.accentColor}10`
                     }}
                   >
+                    {/* Glow accent in corner */}
+                    <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full opacity-20" style={{ background: themeStyles.accentColor, filter: 'blur(16px)' }} />
                     <div 
-                      className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 text-white font-bold text-lg"
-                      style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}, ${themeStyles.accentColor}cc)` }}
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 text-2xl shadow-lg"
+                      style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}, ${themeStyles.accentColor}bb)`, boxShadow: `0 4px 16px ${themeStyles.accentColor}30` }}
                     >
-                      {index + 1}
+                      {gridIcons[index]}
                     </div>
                     <p 
-                      className="text-lg font-medium leading-snug"
+                      className="text-lg font-semibold leading-snug"
                       style={{ color: themeStyles.contentColor }}
                     >
                       {item}
@@ -1090,36 +1096,27 @@ const Editor = () => {
           <div className="w-1/2 relative">
             {imageUrl ? (
               <>
-                <img 
-                  src={imageUrl} 
-                  alt="Slide visual" 
-                  className="w-full h-full object-cover"
-                />
-                <div 
-                  className="absolute inset-0"
-                  style={{ background: `linear-gradient(to right, transparent 70%, ${themeStyles.background?.includes('gradient') ? '#00000080' : themeStyles.background || '#ffffff'})`}}
-                />
+                <img src={imageUrl} alt="Slide visual" className="w-full h-full object-cover" />
+                <div className="absolute inset-0" style={{ background: `linear-gradient(to right, transparent 60%, ${themeStyles.background?.includes('gradient') ? '#00000090' : themeStyles.background || '#ffffff'})` }} />
+                {/* Decorative diagonal stripe */}
+                <div className="absolute bottom-0 right-0 w-1 h-full" style={{ background: `linear-gradient(180deg, transparent, ${themeStyles.accentColor}60, transparent)` }} />
               </>
             ) : (
-              <div 
-                className="w-full h-full flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}25, ${themeStyles.accentColor}10)` }}
-              >
+              <div className="w-full h-full flex items-center justify-center relative" style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}20, ${themeStyles.accentColor}05)` }}>
+                <div className="absolute inset-8 border rounded-2xl opacity-20" style={{ borderColor: themeStyles.accentColor, borderStyle: 'dashed' }} />
                 <div className="text-center opacity-50">
-                  <div 
-                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
-                    style={{ background: `${themeStyles.accentColor}20` }}
-                  >
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: `${themeStyles.accentColor}15` }}>
                     <span className="text-3xl">🖼️</span>
                   </div>
-                  <p className="text-sm" style={{ color: themeStyles.contentColor }}>Add Image</p>
+                  <p className="text-sm font-medium" style={{ color: themeStyles.contentColor }}>Add Image</p>
                 </div>
               </div>
             )}
           </div>
           <div className="w-1/2 flex flex-col justify-center p-12">
+            <div className="w-10 h-1 rounded-full mb-4" style={{ background: `linear-gradient(90deg, ${themeStyles.accentColor}, transparent)` }} />
             <h1 
-              className="text-4xl font-bold mb-6"
+              className="text-4xl font-extrabold mb-6 tracking-tight"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
@@ -1131,10 +1128,7 @@ const Editor = () => {
               {currentSlide.content.split('\n').map((line, index) => (
                 <p key={index} className="flex items-start">
                   {line.startsWith('• ') && (
-                    <span 
-                      className="w-2.5 h-2.5 rounded-full mr-3 mt-2 flex-shrink-0"
-                      style={{ backgroundColor: themeStyles.accentColor }}
-                    />
+                    <span className="w-2.5 h-2.5 rounded-full mr-3 mt-2 flex-shrink-0 shadow-sm" style={{ backgroundColor: themeStyles.accentColor, boxShadow: `0 0 6px ${themeStyles.accentColor}40` }} />
                   )}
                   <span>{line.replace('• ', '')}</span>
                 </p>
@@ -1145,12 +1139,15 @@ const Editor = () => {
       ),
 
       'quote': () => (
-        <div className="w-full h-full flex flex-col justify-center items-center text-center p-16">
+        <div className="w-full h-full flex flex-col justify-center items-center text-center p-16 relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute top-16 left-16 w-40 h-40 rounded-full opacity-5" style={{ border: `2px solid ${themeStyles.accentColor}` }} />
+          <div className="absolute bottom-16 right-16 w-56 h-56 rounded-full opacity-5" style={{ border: `2px solid ${themeStyles.accentColor}` }} />
           <div 
-            className="text-8xl mb-8 opacity-30"
+            className="text-9xl mb-4 opacity-20 font-serif leading-none"
             style={{ color: themeStyles.accentColor }}
           >
-            "
+            ❝
           </div>
           <h1 
             className="text-3xl font-light italic mb-8 max-w-4xl leading-relaxed"
@@ -1158,8 +1155,9 @@ const Editor = () => {
           >
             {currentSlide.title}
           </h1>
+          <div className="w-16 h-0.5 rounded-full mb-6" style={{ background: `linear-gradient(90deg, transparent, ${themeStyles.accentColor}, transparent)` }} />
           <div 
-            className="text-xl"
+            className="text-xl font-medium tracking-wide uppercase"
             style={{ color: themeStyles.contentColor }}
           >
             {currentSlide.content.split('\n')[0]?.replace('• ', '')}
@@ -1173,51 +1171,50 @@ const Editor = () => {
         const rightItems = contentLines.slice(2, 4).map(l => l.replace('• ', ''));
         
         return (
-          <div className="w-full h-full p-12">
+          <div className="w-full h-full p-12 relative overflow-hidden">
+            {/* VS circle in center */}
             <h1 
-              className="text-4xl font-bold mb-12 text-center"
+              className="text-4xl font-extrabold mb-12 text-center tracking-tight"
               style={{ color: themeStyles.titleColor }}
             >
               {currentSlide.title}
             </h1>
-            <div className="flex gap-8 h-2/3">
+            <div className="flex gap-6 h-2/3 relative">
               <div 
-                className="flex-1 rounded-lg p-8"
-                style={{ backgroundColor: `${themeStyles.accentColor}15` }}
+                className="flex-1 rounded-2xl p-8 relative overflow-hidden"
+                style={{ background: `linear-gradient(145deg, ${themeStyles.accentColor}12, ${themeStyles.accentColor}04)`, border: `1px solid ${themeStyles.accentColor}20` }}
               >
-                <h2 
-                  className="text-2xl font-semibold mb-6 text-center"
-                  style={{ color: themeStyles.accentColor }}
-                >
+                <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full opacity-15" style={{ background: themeStyles.accentColor, filter: 'blur(10px)' }} />
+                <h2 className="text-2xl font-bold mb-6 text-center" style={{ color: themeStyles.accentColor }}>
                   Option A
                 </h2>
                 <div className="space-y-4">
                   {leftItems.map((item, i) => (
                     <p key={i} className="flex items-start" style={{ color: themeStyles.contentColor }}>
-                      <span className="w-2 h-2 rounded-full mr-3 mt-2" style={{ backgroundColor: themeStyles.accentColor }} />
+                      <span className="w-6 h-6 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 text-xs text-white font-bold" style={{ background: themeStyles.accentColor }}>✓</span>
                       {item || `Point ${i + 1}`}
                     </p>
                   ))}
                 </div>
               </div>
+              {/* VS divider */}
+              <div className="flex flex-col items-center justify-center">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${themeStyles.accentColor}, ${themeStyles.accentColor}cc)`, boxShadow: `0 4px 16px ${themeStyles.accentColor}40` }}>
+                  VS
+                </div>
+              </div>
               <div 
-                className="w-px"
-                style={{ backgroundColor: themeStyles.accentColor }}
-              />
-              <div 
-                className="flex-1 rounded-lg p-8"
-                style={{ backgroundColor: `${themeStyles.accentColor}15` }}
+                className="flex-1 rounded-2xl p-8 relative overflow-hidden"
+                style={{ background: `linear-gradient(145deg, ${themeStyles.accentColor}12, ${themeStyles.accentColor}04)`, border: `1px solid ${themeStyles.accentColor}20` }}
               >
-                <h2 
-                  className="text-2xl font-semibold mb-6 text-center"
-                  style={{ color: themeStyles.accentColor }}
-                >
+                <div className="absolute -top-3 -left-3 w-12 h-12 rounded-full opacity-15" style={{ background: themeStyles.accentColor, filter: 'blur(10px)' }} />
+                <h2 className="text-2xl font-bold mb-6 text-center" style={{ color: themeStyles.accentColor }}>
                   Option B
                 </h2>
                 <div className="space-y-4">
                   {rightItems.map((item, i) => (
                     <p key={i} className="flex items-start" style={{ color: themeStyles.contentColor }}>
-                      <span className="w-2 h-2 rounded-full mr-3 mt-2" style={{ backgroundColor: themeStyles.accentColor }} />
+                      <span className="w-6 h-6 rounded-lg flex items-center justify-center mr-3 flex-shrink-0 text-xs text-white font-bold" style={{ background: themeStyles.accentColor }}>✓</span>
                       {item || `Point ${i + 1}`}
                     </p>
                   ))}
@@ -1231,35 +1228,45 @@ const Editor = () => {
       'stats': () => {
         const contentLines = currentSlide.content.split('\n').filter(line => line.trim());
         const stats = contentLines.slice(0, 4).map(l => l.replace('• ', ''));
+        const gradients = [
+          `linear-gradient(135deg, ${themeStyles.accentColor}20, ${themeStyles.accentColor}08)`,
+          `linear-gradient(135deg, ${themeStyles.titleColor}15, ${themeStyles.titleColor}05)`,
+          `linear-gradient(135deg, ${themeStyles.contentColor}20, ${themeStyles.contentColor}08)`,
+          `linear-gradient(135deg, ${themeStyles.accentColor}15, ${themeStyles.accentColor}05)`,
+        ];
         
         return (
-          <div className="w-full h-full p-12">
-            <h1 
-              className="text-4xl font-bold mb-16 text-center"
-              style={{ color: themeStyles.titleColor }}
-            >
-              {currentSlide.title}
-            </h1>
-            <div className="grid grid-cols-4 gap-6 h-1/2">
-              {stats.map((stat, index) => (
-                <div 
-                  key={index}
-                  className="flex flex-col items-center justify-center text-center"
-                >
+          <div className="w-full h-full p-12 relative overflow-hidden">
+            {/* Background pattern */}
+            <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `radial-gradient(${themeStyles.accentColor} 1px, transparent 1px)`, backgroundSize: '24px 24px' }} />
+            <div className="relative z-10">
+              <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: `linear-gradient(90deg, transparent, ${themeStyles.accentColor}, transparent)` }} />
+              <h1 
+                className="text-4xl font-extrabold mb-16 text-center tracking-tight"
+                style={{ color: themeStyles.titleColor }}
+              >
+                {currentSlide.title}
+              </h1>
+              <div className="grid grid-cols-4 gap-6 h-1/2">
+                {stats.map((stat, index) => (
                   <div 
-                    className="text-5xl font-bold mb-4"
-                    style={{ color: themeStyles.accentColor }}
+                    key={index}
+                    className="flex flex-col items-center justify-center text-center rounded-2xl p-6 relative overflow-hidden"
+                    style={{ background: gradients[index], border: `1px solid ${themeStyles.accentColor}15` }}
                   >
-                    {['📈', '🎯', '💡', '🚀'][index]}
+                    <div className="absolute top-0 left-0 right-0 h-1 rounded-b-full" style={{ background: `linear-gradient(90deg, transparent, ${themeStyles.accentColor}60, transparent)` }} />
+                    <div className="text-5xl mb-4">
+                      {['📈', '🎯', '💡', '🚀'][index]}
+                    </div>
+                    <p 
+                      className="text-lg font-semibold"
+                      style={{ color: themeStyles.contentColor }}
+                    >
+                      {stat || `Stat ${index + 1}`}
+                    </p>
                   </div>
-                  <p 
-                    className="text-lg font-medium"
-                    style={{ color: themeStyles.contentColor }}
-                  >
-                    {stat || `Stat ${index + 1}`}
-                  </p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         );
