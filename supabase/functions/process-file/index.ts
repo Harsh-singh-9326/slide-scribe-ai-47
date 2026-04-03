@@ -196,7 +196,7 @@ serve(async (req) => {
         // First try standard text extraction
         let pdfText = '';
         try {
-          pdfText = await extractPDFText(pdfBuffer);
+          pdfText = extractPDFText(pdfBuffer);
         } catch (e) {
           console.log('Standard PDF extraction failed, will try OCR');
         }
