@@ -1638,8 +1638,25 @@ const Editor = () => {
       theme: currentTheme,
       title: presentation?.title || 'Presentation'
     };
-    localStorage.setItem('practice_mode_data', JSON.stringify(presentationData));
-    window.open('/present', '_blank');
+    const jsonStr = JSON.stringify(presentationData);
+    
+    // Store in localStorage as primary method
+    localStorage.setItem('practice_mode_data', jsonStr);
+    
+    // Also send via BroadcastChannel as backup for sandboxed environments
+    const channel = new BroadcastChannel('practice_mode_channel');
+    const newWindow = window.open('/present', '_blank');
+    
+    // Send data repeatedly for a few seconds to ensure the new tab receives it
+    let attempts = 0;
+    const interval = setInterval(() => {
+      channel.postMessage({ type: 'practice_data', data: presentationData });
+      attempts++;
+      if (attempts > 10) {
+        clearInterval(interval);
+        channel.close();
+      }
+    }, 300);
   };
 
   return (

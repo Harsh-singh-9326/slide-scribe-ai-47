@@ -71,20 +71,40 @@ const PresentationMode = () => {
   const [presentationTitle, setPresentationTitle] = useState('');
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
-  // Load presentation data from localStorage
+  // Load presentation data from localStorage or BroadcastChannel
   useEffect(() => {
+    const loadFromData = (parsed: any) => {
+      setSlides(parsed.slides || []);
+      setGlobalTheme(parsed.theme || 'modern');
+      setPresentationTitle(parsed.title || 'Presentation');
+    };
+
+    // Try localStorage first
     const storedData = localStorage.getItem('practice_mode_data');
-    
     if (storedData) {
       try {
-        const parsed = JSON.parse(storedData);
-        setSlides(parsed.slides || []);
-        setGlobalTheme(parsed.theme || 'modern');
-        setPresentationTitle(parsed.title || 'Presentation');
+        loadFromData(JSON.parse(storedData));
+        return;
       } catch (e) {
-        console.error('Failed to parse presentation data');
+        console.error('Failed to parse presentation data from localStorage');
       }
     }
+
+    // Fallback: listen on BroadcastChannel for sandboxed environments
+    const channel = new BroadcastChannel('practice_mode_channel');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'practice_data' && event.data?.data) {
+        loadFromData(event.data.data);
+        // Also persist to localStorage for refresh
+        try {
+          localStorage.setItem('practice_mode_data', JSON.stringify(event.data.data));
+        } catch (e) { /* ignore */ }
+      }
+    };
+
+    return () => {
+      channel.close();
+    };
   }, []);
 
   // Generate full presentation script
