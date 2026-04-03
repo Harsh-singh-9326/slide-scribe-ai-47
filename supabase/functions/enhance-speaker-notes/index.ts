@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { slideTitle, slideContent, existingNotes } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!aiApiKey) {
+      throw new Error('AI API key is not configured');
     }
 
     const prompt = `You are a presentation coach helping a speaker prepare for their talk. Analyze this slide and provide helpful speaking guidance including exactly what to say.
