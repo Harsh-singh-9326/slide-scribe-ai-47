@@ -52,7 +52,7 @@ Task: ${refinementPrompts[instruction as keyof typeof refinementPrompts] || inst
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
+          'Authorization': `Bearer ${aiApiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
