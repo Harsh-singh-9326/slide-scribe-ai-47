@@ -6,39 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extract text from PDF using pdf.js (Deno-compatible)
-async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
+// Extract text from PDF using basic binary parsing (no native deps)
+function extractPDFText(pdfBuffer: ArrayBuffer): string {
   try {
-    const pdfjs: any = await import(
-      "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs"
-    );
-
-    if (pdfjs?.GlobalWorkerOptions) {
-      pdfjs.GlobalWorkerOptions.workerSrc = "";
+    const bytes = new Uint8Array(pdfBuffer);
+    const text = new TextDecoder('latin1').decode(bytes);
+    const extractedParts: string[] = [];
+    
+    // Extract text between BT (Begin Text) and ET (End Text) operators
+    const btEtRegex = /BT\s([\s\S]*?)ET/g;
+    let match;
+    while ((match = btEtRegex.exec(text)) !== null) {
+      const block = match[1];
+      // Extract text from Tj and TJ operators
+      const tjRegex = /\(([^)]*)\)\s*Tj/g;
+      let tjMatch;
+      while ((tjMatch = tjRegex.exec(block)) !== null) {
+        const decoded = tjMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\');
+        if (decoded.trim()) extractedParts.push(decoded);
+      }
+      // TJ array operator
+      const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+      let tjArrMatch;
+      while ((tjArrMatch = tjArrayRegex.exec(block)) !== null) {
+        const arrContent = tjArrMatch[1];
+        const strRegex = /\(([^)]*)\)/g;
+        let strMatch;
+        while ((strMatch = strRegex.exec(arrContent)) !== null) {
+          const decoded = strMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\');
+          extractedParts.push(decoded);
+        }
+      }
     }
-
-    const getDocument = pdfjs.getDocument ?? pdfjs.default?.getDocument;
-    if (!getDocument) throw new Error("pdf.js getDocument not available");
-
-    const loadingTask = getDocument({
-      data: new Uint8Array(pdfBuffer),
-      disableWorker: true,
-    });
-
-    const pdf = await loadingTask.promise;
-    let fullText = "";
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = (textContent.items as any[])
-        .map((item) => item?.str ?? "")
-        .join(" ")
-        .trim();
-      if (pageText) fullText += pageText + "\n\n";
-    }
-
-    return fullText.trim();
+    
+    return extractedParts.join(' ').replace(/\s+/g, ' ').trim();
   } catch (error) {
     console.error("PDF parsing error:", error);
     throw new Error("Failed to parse PDF content");
@@ -104,12 +115,25 @@ async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
   }
 }
 
-// Extract DOCX text using mammoth
+// Extract DOCX text using JSZip (Deno-compatible, no native deps)
 async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
   try {
-    const mammoth = await import('https://esm.sh/mammoth@1.6.0');
-    const result = await mammoth.extractRawText({ arrayBuffer: docxBuffer });
-    return result.value;
+    const JSZip = (await import('npm:jszip@3.10.1')).default;
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file('word/document.xml')?.async('text');
+    if (!docXml) throw new Error('No document.xml found in DOCX');
+    // Strip XML tags to get plain text, preserve paragraph breaks
+    const text = docXml
+      .replace(/<\/w:p[^>]*>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return text;
   } catch (error) {
     console.error('DOCX parsing error:', error);
     throw new Error('Failed to parse DOCX content');
@@ -172,7 +196,7 @@ serve(async (req) => {
         // First try standard text extraction
         let pdfText = '';
         try {
-          pdfText = await extractPDFText(pdfBuffer);
+          pdfText = extractPDFText(pdfBuffer);
         } catch (e) {
           console.log('Standard PDF extraction failed, will try OCR');
         }
