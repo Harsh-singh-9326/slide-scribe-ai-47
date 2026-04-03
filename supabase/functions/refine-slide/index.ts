@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { slideContent, instruction, layout } = await req.json();
     
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY not configured');
+    const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!aiApiKey) {
+      console.error('AI API key not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
