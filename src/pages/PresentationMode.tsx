@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -53,6 +54,7 @@ interface SlideLap {
 }
 
 const PresentationMode = () => {
+  const [searchParams] = useSearchParams();
   const [slides, setSlides] = useState<Slide[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [previousSlide, setPreviousSlide] = useState(0);
@@ -71,41 +73,37 @@ const PresentationMode = () => {
   const [presentationTitle, setPresentationTitle] = useState('');
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
-  // Load presentation data from localStorage or BroadcastChannel
+  // Load presentation data from Supabase using URL params
   useEffect(() => {
-    const loadFromData = (parsed: any) => {
-      setSlides(parsed.slides || []);
-      setGlobalTheme(parsed.theme || 'modern');
-      setPresentationTitle(parsed.title || 'Presentation');
-    };
+    const presentationId = searchParams.get('id');
+    const theme = searchParams.get('theme') || 'modern';
+    const title = searchParams.get('title') || 'Presentation';
 
-    // Try localStorage first
-    const storedData = localStorage.getItem('practice_mode_data');
-    if (storedData) {
-      try {
-        loadFromData(JSON.parse(storedData));
-        return;
-      } catch (e) {
-        console.error('Failed to parse presentation data from localStorage');
-      }
-    }
+    setGlobalTheme(theme);
+    setPresentationTitle(decodeURIComponent(title));
 
-    // Fallback: listen on BroadcastChannel for sandboxed environments
-    const channel = new BroadcastChannel('practice_mode_channel');
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'practice_data' && event.data?.data) {
-        loadFromData(event.data.data);
-        // Also persist to localStorage for refresh
-        try {
-          localStorage.setItem('practice_mode_data', JSON.stringify(event.data.data));
-        } catch (e) { /* ignore */ }
+    if (!presentationId) return;
+
+    const fetchSlides = async () => {
+      const { data, error } = await supabase
+        .from('slides')
+        .select('*')
+        .eq('presentation_id', presentationId)
+        .order('slide_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        setSlides(data.map(s => ({
+          id: s.id,
+          title: s.title,
+          content: s.content || '',
+          notes: s.notes || '',
+          layout: s.layout || undefined,
+        })));
       }
     };
 
-    return () => {
-      channel.close();
-    };
-  }, []);
+    fetchSlides();
+  }, [searchParams]);
 
   // Generate full presentation script
   const downloadFullScript = async (format: 'txt' | 'pdf') => {
