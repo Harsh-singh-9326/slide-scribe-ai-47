@@ -45,11 +45,11 @@ async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
   }
 }
 
-// OCR for scanned PDFs using Lovable AI (Google Gemini Vision)
+// OCR for scanned PDFs using AI Vision
 async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!lovableApiKey) {
-    console.log('LOVABLE_API_KEY not configured, skipping OCR');
+  const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!aiApiKey) {
+    console.log('AI API key not configured, skipping OCR');
     return '';
   }
 
