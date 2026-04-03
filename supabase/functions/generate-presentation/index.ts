@@ -170,14 +170,14 @@ serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
-    if (!lovableApiKey && !geminiApiKey) {
+    if (!aiApiKey && !geminiApiKey) {
       return new Response(
         JSON.stringify({
           error: 'No AI provider configured',
-          details: 'LOVABLE_API_KEY or GEMINI_API_KEY must be set.'
+          details: 'AI API key or GEMINI_API_KEY must be set.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
