@@ -21,9 +21,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
+    const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!aiApiKey) {
+      console.error('AI API key is not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
@@ -32,13 +32,13 @@ serve(async (req) => {
 
     console.log('Generating image with prompt:', prompt);
 
-    // Use Lovable AI Gateway with Gemini Flash image model
+    // Use AI Gateway with Gemini Flash image model
     const response = await fetch(
       'https://ai.gateway.lovable.dev/v1/chat/completions',
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${aiApiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
