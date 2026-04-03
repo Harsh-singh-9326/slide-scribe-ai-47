@@ -170,14 +170,14 @@ serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const aiApiKey = Deno.env.get('LOVABLE_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 
-    if (!lovableApiKey && !geminiApiKey) {
+    if (!aiApiKey && !geminiApiKey) {
       return new Response(
         JSON.stringify({
           error: 'No AI provider configured',
-          details: 'LOVABLE_API_KEY or GEMINI_API_KEY must be set.'
+          details: 'AI API key or GEMINI_API_KEY must be set.'
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -363,14 +363,14 @@ Return ONLY valid JSON, no additional text.`;
       return String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
     };
 
-    const generateWithLovableAI = async (): Promise<string> => {
-      if (!lovableApiKey) throw new Error('Lovable API key not configured');
+    const generateWithAIGateway = async (): Promise<string> => {
+      if (!aiApiKey) throw new Error('AI API key not configured');
 
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${lovableApiKey}`,
+          Authorization: `Bearer ${aiApiKey}`,
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
@@ -389,7 +389,7 @@ Return ONLY valid JSON, no additional text.`;
         if (resp.status === 402) {
           throw new Error(`RATE_LIMIT:AI credits exhausted. Please add funds.`);
         }
-        throw new Error(`Lovable AI error (${resp.status}): ${errorText}`);
+        throw new Error(`AI Gateway error (${resp.status}): ${errorText}`);
       }
 
       const data = await resp.json();
@@ -399,13 +399,13 @@ Return ONLY valid JSON, no additional text.`;
     let aiText = '';
     let lastAiError: string | null = null;
 
-    // Try Lovable AI first, then fall back to Gemini
-    if (lovableApiKey) {
+    // Try AI Gateway first, then fall back to Gemini
+    if (aiApiKey) {
       try {
-        aiText = await generateWithLovableAI();
+        aiText = await generateWithAIGateway();
       } catch (e) {
         lastAiError = e instanceof Error ? e.message : String(e);
-        console.error('Lovable AI generation failed:', lastAiError);
+        console.error('AI Gateway generation failed:', lastAiError);
       }
     }
 
