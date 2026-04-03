@@ -389,7 +389,7 @@ Return ONLY valid JSON, no additional text.`;
         if (resp.status === 402) {
           throw new Error(`RATE_LIMIT:AI credits exhausted. Please add funds.`);
         }
-        throw new Error(`Lovable AI error (${resp.status}): ${errorText}`);
+        throw new Error(`AI Gateway error (${resp.status}): ${errorText}`);
       }
 
       const data = await resp.json();
