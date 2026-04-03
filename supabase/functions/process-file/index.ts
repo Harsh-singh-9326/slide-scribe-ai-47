@@ -118,7 +118,7 @@ async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
 // Extract DOCX text using JSZip (Deno-compatible, no native deps)
 async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
   try {
-    const JSZip = (await import('https://esm.sh/jszip@3.10.1')).default;
+    const JSZip = (await import('npm:jszip@3.10.1')).default;
     const zip = await JSZip.loadAsync(docxBuffer);
     const docXml = await zip.file('word/document.xml')?.async('text');
     if (!docXml) throw new Error('No document.xml found in DOCX');
