@@ -71,14 +71,13 @@ const PresentationMode = () => {
   const [presentationTitle, setPresentationTitle] = useState('');
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
 
-  // Load presentation data from URL params or localStorage
+  // Load presentation data from localStorage
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const presentationData = params.get('data');
+    const storedData = localStorage.getItem('practice_mode_data');
     
-    if (presentationData) {
+    if (storedData) {
       try {
-        const parsed = JSON.parse(decodeURIComponent(presentationData));
+        const parsed = JSON.parse(storedData);
         setSlides(parsed.slides || []);
         setGlobalTheme(parsed.theme || 'modern');
         setPresentationTitle(parsed.title || 'Presentation');

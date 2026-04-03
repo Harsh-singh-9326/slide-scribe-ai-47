@@ -1638,8 +1638,8 @@ const Editor = () => {
       theme: currentTheme,
       title: presentation?.title || 'Presentation'
     };
-    const encodedData = encodeURIComponent(JSON.stringify(presentationData));
-    window.open(`/present?data=${encodedData}`, '_blank');
+    localStorage.setItem('practice_mode_data', JSON.stringify(presentationData));
+    window.open('/present', '_blank');
   };
 
   return (
