@@ -69,7 +69,7 @@ Task: ${refinementPrompts[instruction as keyof typeof refinementPrompts] || inst
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Lovable AI error:', response.status, errorText);
+      console.error('AI Gateway error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
