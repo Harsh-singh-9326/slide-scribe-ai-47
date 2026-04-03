@@ -1645,7 +1645,7 @@ const Editor = () => {
     
     // Also send via BroadcastChannel as backup for sandboxed environments
     const channel = new BroadcastChannel('practice_mode_channel');
-    const newWindow = window.open('/present', '_blank');
+    window.open('/present', '_blank');
     
     // Send data repeatedly for a few seconds to ensure the new tab receives it
     let attempts = 0;
