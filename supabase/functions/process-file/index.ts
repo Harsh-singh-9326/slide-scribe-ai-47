@@ -6,39 +6,50 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extract text from PDF using pdf.js (Deno-compatible)
-async function extractPDFText(pdfBuffer: ArrayBuffer): Promise<string> {
+// Extract text from PDF using basic binary parsing (no native deps)
+function extractPDFText(pdfBuffer: ArrayBuffer): string {
   try {
-    const pdfjs: any = await import(
-      "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs"
-    );
-
-    if (pdfjs?.GlobalWorkerOptions) {
-      pdfjs.GlobalWorkerOptions.workerSrc = "";
+    const bytes = new Uint8Array(pdfBuffer);
+    const text = new TextDecoder('latin1').decode(bytes);
+    const extractedParts: string[] = [];
+    
+    // Extract text between BT (Begin Text) and ET (End Text) operators
+    const btEtRegex = /BT\s([\s\S]*?)ET/g;
+    let match;
+    while ((match = btEtRegex.exec(text)) !== null) {
+      const block = match[1];
+      // Extract text from Tj and TJ operators
+      const tjRegex = /\(([^)]*)\)\s*Tj/g;
+      let tjMatch;
+      while ((tjMatch = tjRegex.exec(block)) !== null) {
+        const decoded = tjMatch[1]
+          .replace(/\\n/g, '\n')
+          .replace(/\\r/g, '\r')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\(/g, '(')
+          .replace(/\\\)/g, ')')
+          .replace(/\\\\/g, '\\');
+        if (decoded.trim()) extractedParts.push(decoded);
+      }
+      // TJ array operator
+      const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+      let tjArrMatch;
+      while ((tjArrMatch = tjArrayRegex.exec(block)) !== null) {
+        const arrContent = tjArrMatch[1];
+        const strRegex = /\(([^)]*)\)/g;
+        let strMatch;
+        while ((strMatch = strRegex.exec(arrContent)) !== null) {
+          const decoded = strMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\');
+          extractedParts.push(decoded);
+        }
+      }
     }
-
-    const getDocument = pdfjs.getDocument ?? pdfjs.default?.getDocument;
-    if (!getDocument) throw new Error("pdf.js getDocument not available");
-
-    const loadingTask = getDocument({
-      data: new Uint8Array(pdfBuffer),
-      disableWorker: true,
-    });
-
-    const pdf = await loadingTask.promise;
-    let fullText = "";
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = (textContent.items as any[])
-        .map((item) => item?.str ?? "")
-        .join(" ")
-        .trim();
-      if (pageText) fullText += pageText + "\n\n";
-    }
-
-    return fullText.trim();
+    
+    return extractedParts.join(' ').replace(/\s+/g, ' ').trim();
   } catch (error) {
     console.error("PDF parsing error:", error);
     throw new Error("Failed to parse PDF content");
