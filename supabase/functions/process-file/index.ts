@@ -104,12 +104,25 @@ async function performOCR(pdfBuffer: ArrayBuffer): Promise<string> {
   }
 }
 
-// Extract DOCX text using mammoth
+// Extract DOCX text using JSZip (Deno-compatible, no native deps)
 async function extractDOCXText(docxBuffer: ArrayBuffer): Promise<string> {
   try {
-    const mammoth = await import('https://esm.sh/mammoth@1.6.0');
-    const result = await mammoth.extractRawText({ arrayBuffer: docxBuffer });
-    return result.value;
+    const JSZip = (await import('https://esm.sh/jszip@3.10.1')).default;
+    const zip = await JSZip.loadAsync(docxBuffer);
+    const docXml = await zip.file('word/document.xml')?.async('text');
+    if (!docXml) throw new Error('No document.xml found in DOCX');
+    // Strip XML tags to get plain text, preserve paragraph breaks
+    const text = docXml
+      .replace(/<\/w:p[^>]*>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    return text;
   } catch (error) {
     console.error('DOCX parsing error:', error);
     throw new Error('Failed to parse DOCX content');
