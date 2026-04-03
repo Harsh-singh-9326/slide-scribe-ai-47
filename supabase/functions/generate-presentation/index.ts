@@ -363,14 +363,14 @@ Return ONLY valid JSON, no additional text.`;
       return String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '');
     };
 
-    const generateWithLovableAI = async (): Promise<string> => {
-      if (!lovableApiKey) throw new Error('Lovable API key not configured');
+    const generateWithAIGateway = async (): Promise<string> => {
+      if (!aiApiKey) throw new Error('AI API key not configured');
 
       const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${lovableApiKey}`,
+          Authorization: `Bearer ${aiApiKey}`,
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
