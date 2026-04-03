@@ -399,13 +399,13 @@ Return ONLY valid JSON, no additional text.`;
     let aiText = '';
     let lastAiError: string | null = null;
 
-    // Try Lovable AI first, then fall back to Gemini
-    if (lovableApiKey) {
+    // Try AI Gateway first, then fall back to Gemini
+    if (aiApiKey) {
       try {
-        aiText = await generateWithLovableAI();
+        aiText = await generateWithAIGateway();
       } catch (e) {
         lastAiError = e instanceof Error ? e.message : String(e);
-        console.error('Lovable AI generation failed:', lastAiError);
+        console.error('AI Gateway generation failed:', lastAiError);
       }
     }
 
